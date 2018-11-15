@@ -15,3 +15,12 @@ Session.vim
 tags
 # Persistent undo
 [._]*.un~
+
+# YACC
+frontend/sml.grm.*
+
+# Lex
+frontend/sml.lex.*
+
+# CM
+**/.cm
