@@ -89,7 +89,8 @@ signature CORE_SYNTAX_TREE = sig
   and tyseq = ty list
   and tyvarseq = tyvar list
 
-  and exprow = (lab * exp) list
+  and exprowele = (lab * exp)
+  and exprow = exprowele list
   and mrule = pat * exp
   and match = mrule list
   and typbindele = (tyvarseq * tycon * ty)
@@ -101,7 +102,8 @@ signature CORE_SYNTAX_TREE = sig
   and exbind = exbindele list
   and patrowele = lab * pat
   and patrow = patrowele list * bool
-  and tyrow = (lab * ty) list
+  and tyrowele = (lab * ty)
+  and tyrow = tyrowele list
 
   and strdec = dec
   and topdec = strdec

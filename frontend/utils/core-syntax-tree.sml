@@ -89,7 +89,8 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and tyseq = ty list
   and tyvarseq = tyvar list
 
-  and exprow = (lab * exp) list
+  and exprowele = (lab * exp)
+  and exprow = exprowele list
   and mrule = pat * exp
   and match = mrule list
   and typbindele = (tyvarseq * tycon * ty)
@@ -101,13 +102,16 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and exbind = exbindele list
   and patrowele = lab * pat
   and patrow = patrowele list * bool
-  and tyrow = (lab * ty) list
+  and tyrowele = (lab * ty)
+  and tyrow = tyrowele list
 
   and strdec = dec
   and topdec = strdec
   and prog = topdec
 
+
   exception FullSyntaxToCoreSyntaxException
+
 
   fun fromAtexp (FST.SCON_ATEXP e) = SCON_ATEXP (fromScon e)
     | fromAtexp (FST.LVID_ATEXP e) = LVID_ATEXP e
@@ -259,6 +263,136 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | fromLab (FST.STR_LAB l) = STR_LAB l
 
   and fromProg prog = fromDec prog
+
+
+  fun listToString ls toString splitStr =
+    List.foldr (fn (a, b) => (a ^ splitStr ^ b)) "" (map toString ls)
+  fun optionToString (SOME opt) toString empty = toString opt
+    | optionToString NONE toString empty = empty
+
+  fun atexpToString (SCON_ATEXP scon) = sconToString scon
+    | atexpToString (LVID_ATEXP lvid) = lvidToString lvid
+    | atexpToString (RCD_ATEXP exprow) = "{" ^ exprowToString exprow ^ "}"
+    | atexpToString (LET_ATEXP (dec, exp)) =
+    "LET" ^ (decToString dec) ^ "IN" ^ (expToString exp) ^ "END"
+    | atexpToString (EXP_ATEXP exp) = expToString exp
+
+  and expToString (AT_EXP atexp) = atexpToString atexp
+    | expToString (APP_EXP (exp, atexp)) =
+    (expToString exp) ^ (atexpToString atexp)
+    | expToString (INF_EXP (exp, vid, exp')) =
+    (expToString exp) ^ (vidToString vid) ^ (expToString exp')
+    | expToString (TY_EXP (exp, ty)) = (expToString exp) ^ ":" ^ (tyToString ty)
+    | expToString (HAND_EXP (exp, match)) =
+    (expToString exp) ^ "HANDLE" ^ (matchToString match)
+    | expToString (RAS_EXP exp) = "RAISE" ^ (expToString exp)
+    | expToString (FN_EXP match) = "FN" ^ (matchToString match)
+
+  and decToString (VAL_DEC (tyvarseq, valbind)) =
+    (tyvarseqToString tyvarseq) ^ (valbindToString valbind)
+    | decToString (TYP_DEC typbind) = "TYPE" ^ (typbindToString typbind)
+    | decToString (DAT_DEC datbind) = "DATATYPE" ^ (datbindToString datbind)
+    | decToString (REP_DEC (tycon, ltycon)) =
+    "DATATYPE" ^ (tyconToString tycon) ^ "DATATYPE" ^ (ltyconToString ltycon)
+    | decToString (ABS_DEC (datbind, dec)) =
+    "ABSTYPE" ^ (datbindToString datbind) ^ "WITH" ^ (decToString dec) ^ "END"
+    | decToString (EXC_DEC (exbind)) = "EXCEPTION" ^ exbindToString exbind
+    | decToString (LOC_DEC (dec, dec')) =
+    "LOCAL" ^ (decToString dec) ^ "IN" ^ (decToString dec')
+    | decToString (OPEN_DEC (lstridseq)) =
+    "OPEN" ^ (lstridseqToString lstridseq)
+    | decToString (SEQ_DEC (dec, dec')) =
+    (decToString dec) ^ ";" ^ (decToString dec')
+    | decToString (INF_DEC (intOption, vidseq)) =
+    "INFIX" ^ (optionToString intOption Int.toString "") ^
+    (vidseqToString vidseq)
+    | decToString (INFR_DEC (intOption, vidseq)) =
+    "INFIXR" ^ (optionToString intOption Int.toString "") ^
+    (vidseqToString vidseq)
+    | decToString (NOF_DEC vidseq) =
+    "NONFIX" ^ (vidseqToString vidseq)
+
+  and valbindToString (NRE_VALBIND vrow) = vrowToString vrow
+    | valbindToString (REC_VALBIND vrow) = "REC" ^ (vrowToString vrow)
+
+  and exbindeleToString (VID_EXBIND_ELE (vid, tyOption)) =
+    (vidToString vid) ^ (optionToString tyOption tyToString "")
+    | exbindeleToString (REP_EXBIND_ELE (vid, lvid)) =
+    (vidToString vid) ^ (lvidToString lvid)
+
+  and atpatToString WILD_ATPAT = "_"
+    | atpatToString (SCON_ATPAT scon) = sconToString scon
+    | atpatToString (LVID_ATPAT lvid) = lvidToString lvid
+    | atpatToString (RCD_ATPAT patrow) = patrowToString patrow
+    | atpatToString (PAT_ATPAT pat) = patToString pat
+
+  and patToString (AT_PAT atpat) = atpatToString atpat
+    | patToString (CON_PAT (lvid, atpat)) =
+    (lvidToString lvid) ^ (atpatToString atpat)
+    | patToString (INF_PAT (pat, vid, pat')) =
+    (patToString pat) ^ (vidToString vid) ^ (patToString pat')
+    | patToString (TY_PAT (pat, ty)) = (patToString pat) ^ ":" ^ (tyToString ty)
+    | patToString (LAY_PAT (vid, tyOption, pat)) =
+    (vidToString vid) ^ ":" ^ (optionToString tyOption tyToString " ") ^
+    (patToString pat)
+
+  and tyToString (VAR_TY tyvar) = tyvarToString tyvar
+    | tyToString (RCD_TY tyrow) = tyrowToString tyrow
+    | tyToString (CON_TY (tyseq, ltycon)) =
+    (tyseqToString tyseq) ^ (ltyconToString ltycon)
+    | tyToString (FUN_TY (ty, ty')) = (tyToString ty) ^ "->" ^ (tyToString ty')
+
+  and sconToString (INT_SCON i) = Int.toString i
+    | sconToString (REAL_SCON r) = Real.toString r
+    | sconToString (WORD_SCON w) = Word.toString w
+    | sconToString (CHAR_SCON c) = Char.toString c
+    | sconToString (STR_SCON s) = "\"" ^ s ^ "\""
+
+  and labToString (INT_LAB i) = Int.toString i
+    | labToString (STR_LAB s) = s
+
+  and idToString id = id
+  and tyvarToString tyvar = "'" ^ tyvar
+  and vidToString vid = vid
+  and stridToString strid = strid
+  and tyconToString tycon = tycon
+  and ltyconToString ltycon = lidToString ltycon
+  and lvidToString lvid = lidToString lvid
+  and lstridToString lstrid = lidToString lstrid
+
+  and lidpreToString lidpre = listToString lidpre stridToString "."
+  and lidToString (lidpre, vid) = (lidpreToString lidpre) ^ "." ^ (vidToString vid)
+
+  and lstridseqToString lstridseq = (listToString lstridseq lstridToString " ")
+  and vidseqToString vidseq = listToString vidseq vidToString " "
+  and vroweleToString (pat, exp) = (patToString pat) ^ "=" ^ (expToString exp)
+  and vrowToString vrow = listToString vrow vroweleToString "AND"
+  and tyseqToString tyseq = listToString tyseq tyToString " "
+  and tyvarseqToString tyvarseq = listToString tyvarseq tyvarToString " "
+  and exproweleToString (lab, exp) = (labToString lab) ^ "=" ^ (expToString exp)
+  and exprowToString exprow = listToString exprow exproweleToString ","
+  and mruleToString (pat, exp) = (patToString pat) ^ "=>" ^ (expToString exp)
+  and matchToString match = listToString match mruleToString "|"
+  and typbindeleToString (tyvarseq, tycon, ty) =
+    (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^ "=" ^ (tyToString ty)
+  and typbindToString typbind = listToString typbind typbindeleToString "and"
+  and conbindeleToString (vid, tyOption) =
+    (vidToString vid) ^ "OF" ^ (optionToString tyOption tyToString "<>")
+  and conbindToString conbind = listToString conbind conbindeleToString "|"
+  and datbindeleToString (tyvarseq, tycon, conbind) =
+    (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^
+    "=" ^ (conbindToString conbind)
+  and datbindToString datbind = listToString datbind datbindeleToString "and"
+  and exbindToString exbind = listToString exbind exbindeleToString "and"
+  and patroweleToString (lab, pat) = (labToString lab) ^ "=" ^ (patToString pat)
+  and patrowToString (patrow, isWild) = listToString patrow patroweleToString ","
+    ^ (if isWild then ",..." else "")
+  and tyroweleToString (lab, ty) = (labToString lab) ^ ":" ^ (tyToString ty)
+  and tyrowToString tyrow = listToString tyrow tyroweleToString ","
+  and strdecToString dec = decToString dec
+  and topdecToString strdec = strdecToString strdec
+  and progToString topdec = topdecToString topdec
+
 end
 
 structure CST = CoreSyntaxTree
