@@ -32,7 +32,10 @@ float = (~?{num}.{num})|(~?{num}(.{num})?e~?{num});
 char = #"({ascii})";
 string = "{ascii}*";
 
-id = {letter}({letter}|{digit}|_|')*;
+symbol = [!%&$#+-/:<=>?@\~‘^|*];
+comment = \(\*.*\*\);
+
+id = ({letter}({letter}|{digit}|_|')*)|({symbol}+);
 iddot = {id}\.;
 var = '({letter}|{digit}|'|_)*;
 lid = {id}(\.{id})*;
@@ -40,6 +43,7 @@ lab = {id}|{num};
 
 %%
 
+{comment}   => (lex());
 {ws}        => (pos := letterMove (!pos) 1; lex());
 \n          => (pos := lineMove (!pos) 1; lex());
 "("         => (Tokens.LRBR (!pos,!pos));
