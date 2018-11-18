@@ -169,7 +169,7 @@ signature FULL_SYNTAX_TREE = sig
   val vidPatroweleToLabPatrowele : patrowele -> patrowele
 
   val tupTyToRcdTy : ty -> ty
-  val frowToTupAtpat : frow -> atpat
+  val frowToAtpat : frow -> atpat
   val fvaleleToMrule : fvalele -> mrule
   val fvalToVrowele : fval -> vrowele
   val fvalbindToValbind : fvalbind -> valbind

@@ -150,7 +150,7 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
 
   local val count = ref 0 in
   fun getUniqueId () = let
-    val preservedPrefix = "PRESERVE"
+    val preservedPrefix = "_"
   in
     count := (!count) + 1;
     preservedPrefix ^ (Int.toString (!count))
@@ -262,9 +262,11 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
   end
     | tupTyToRcdTy _ = raise DerivedFormException
 
-  fun frowToTupAtpat ps = TUP_ATPAT (map AT_PAT ps)
+  fun frowToAtpat nil = raise DerivedFormException
+    | frowToAtpat (p :: nil) = p
+    | frowToAtpat ps = TUP_ATPAT (map AT_PAT ps)
 
-  fun fvaleleToMrule (_, frow, exp) = (AT_PAT (frowToTupAtpat frow), exp)
+  fun fvaleleToMrule (_, frow, exp) = (AT_PAT (frowToAtpat frow), exp)
 
   fun fvalToVrowele rs = let
     (* optimisation from n to log n*)
@@ -277,17 +279,21 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
 
     val (vid, argNum) = fvalGetVidArgNum rs
 
+    val match = map fvaleleToMrule rs
     val idseq = getUniqueIdseq argNum
 
-    val tupAtexp = TUP_ATEXP (map expById idseq)
-    val match = map fvaleleToMrule rs
-    val caseExp = CASE_EXP (expByAtexp tupAtexp, match)
+    fun getCase 1 = let
+          val lvidExp = expById (List.nth (idseq, 0))
+      in CASE_EXP (lvidExp, match) end
+      | getCase _ = let
+          val tupAtexp = TUP_ATEXP (map expById idseq)
+      in CASE_EXP (expByAtexp tupAtexp, match) end
 
-    fun getFns nil i = caseExp
+    fun getFns nil i = getCase argNum
       | getFns (x :: xs) i =
       FN_EXP [(patById (List.nth (idseq, i)), getFns xs (i + 1))]
   in
-    (patById vid, getFns rs 1)
+    (patById vid, getFns rs 0)
   end
 
   fun fvalbindToValbind nil = raise DerivedFormException
