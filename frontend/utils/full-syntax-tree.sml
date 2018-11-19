@@ -289,11 +289,11 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
           val tupAtexp = TUP_ATEXP (map expById idseq)
       in CASE_EXP (expByAtexp tupAtexp, match) end
 
-    fun getFns nil i = getCase argNum
-      | getFns (x :: xs) i =
-      FN_EXP [(patById (List.nth (idseq, i)), getFns xs (i + 1))]
+    fun getFns 0 _ = getCase argNum
+      | getFns n i =
+      FN_EXP [(patById (List.nth (idseq, i)), getFns (n - 1) (i + 1))]
   in
-    (patById vid, getFns rs 0)
+    (print ("test" ^ Int.toString argNum);(patById vid, getFns argNum 0))
   end
 
   fun fvalbindToValbind nil = raise DerivedFormException
