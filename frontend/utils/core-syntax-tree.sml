@@ -112,28 +112,41 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
 
   exception FullSyntaxToCoreSyntaxException
 
+  (* WARN: there transformation may cause problem *
+   * target at preventing unnecessary construction *)
+  fun atexpToExp (EXP_ATEXP e) = e
+    | atexpToExp e = AT_EXP e
+
+  fun expToAtexp (AT_EXP e) = e
+    | expToAtexp e = EXP_ATEXP e
+
+  fun atpatToPat (PAT_ATPAT p) = p
+    | atpatToPat p = AT_PAT p
+
+  fun patToAtpat (AT_PAT p) = p
+    | patToAtpat p = PAT_ATPAT p
 
   fun fromAtexp (FST.SCON_ATEXP e) = SCON_ATEXP (fromScon e)
     | fromAtexp (FST.LVID_ATEXP e) = LVID_ATEXP e
     | fromAtexp (FST.RCD_ATEXP e) = RCD_ATEXP (fromExprow e)
     | fromAtexp (FST.LAB_ATEXP lab) =
-    EXP_ATEXP (fromExp(FST.labAtexpToFnExp (FST.LAB_ATEXP lab)))
+    expToAtexp (fromExp(FST.labAtexpToFnExp (FST.LAB_ATEXP lab)))
 
     | fromAtexp FST.UNIT_ATEXP = RCD_ATEXP nil
     | fromAtexp (FST.TUP_ATEXP expseq) =
     fromAtexp (FST.tupAtexpToRcdAtexp (FST.TUP_ATEXP expseq))
     | fromAtexp (FST.LIST_ATEXP expseq) =
-    EXP_ATEXP (fromInfexp (FST.listAtexpToInfexp (FST.LIST_ATEXP expseq)))
+    expToAtexp (fromInfexp (FST.listAtexpToInfexp (FST.LIST_ATEXP expseq)))
     | fromAtexp (FST.SEQ_ATEXP expseq) =
-    EXP_ATEXP (fromAppexp (FST.seqAtexpToAppexp (FST.SEQ_ATEXP expseq)))
+    expToAtexp (fromAppexp (FST.seqAtexpToAppexp (FST.SEQ_ATEXP expseq)))
     | fromAtexp (FST.LET_ATEXP (dec, seqexp)) =
     LET_ATEXP (fromDec dec, fromExp (FST.seqAtexpToCaseExp (FST.SEQ_ATEXP seqexp)))
 
-    | fromAtexp (FST.EXP_ATEXP exp) = EXP_ATEXP (fromExp exp)
+    | fromAtexp (FST.EXP_ATEXP exp) = expToAtexp (fromExp exp)
 
   and fromInfexp (FST.N_INFEXP (infexp, vid, infexp')) =
     INF_EXP(fromInfexp infexp, vid, fromInfexp infexp')
-    | fromInfexp (FST.APP_INFEXP (atexp :: nil)) = AT_EXP (fromAtexp atexp)
+    | fromInfexp (FST.APP_INFEXP (atexp :: nil)) = atexpToExp (fromAtexp atexp)
     | fromInfexp (FST.APP_INFEXP (atexp :: appexp)) =
     APP_EXP (fromInfexp (FST.APP_INFEXP appexp) ,fromAtexp atexp)
     | fromInfexp (FST.APP_INFEXP nil) = raise FullSyntaxToCoreSyntaxException
@@ -141,7 +154,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and fromExprow exprow =
     map (fn (lab, exp) => (fromLab lab, fromExp exp)) exprow
 
-  and fromAppexp (atexp :: nil) = AT_EXP (fromAtexp atexp)
+  and fromAppexp (atexp :: nil) = atexpToExp (fromAtexp atexp)
     | fromAppexp (atexp :: atexps) = APP_EXP (fromAppexp atexps, fromAtexp atexp)
     | fromAppexp _ = raise FullSyntaxToCoreSyntaxException
 
@@ -153,7 +166,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | fromExp (FST.RAS_EXP e) = RAS_EXP (fromExp e)
     | fromExp (FST.IF_EXP e)  = fromAppexp (FST.ifExpToAppexp (FST.IF_EXP e))
     | fromExp (FST.WHIL_EXP e) =
-    AT_EXP (fromAtexp (FST.whilExpToLetAtexp (FST.WHIL_EXP e)))
+    atexpToExp (fromAtexp (FST.whilExpToLetAtexp (FST.WHIL_EXP e)))
     | fromExp (FST.CASE_EXP e) =
     fromAppexp (FST.caseExpToAppexp (FST.CASE_EXP e))
     | fromExp (FST.FN_EXP m) = FN_EXP (fromMatch m)
@@ -223,9 +236,9 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     fromAtpat (FST.tupAtpatToRcdAtpat (FST.TUP_ATPAT patseq))
 
     | fromAtpat (FST.LIST_ATPAT patseq) =
-    PAT_ATPAT (fromPat (FST.listAtpatToInfPat (FST.LIST_ATPAT patseq)))
+    patToAtpat (fromPat (FST.listAtpatToInfPat (FST.LIST_ATPAT patseq)))
 
-    | fromAtpat (FST.PAT_ATPAT pat) = PAT_ATPAT (fromPat pat)
+    | fromAtpat (FST.PAT_ATPAT pat) = patToAtpat (fromPat pat)
 
   and fromPatrow patrow = let
       fun aux (FST.WILD_PATROW_ELE :: patrow) isWild = aux patrow true
@@ -237,7 +250,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
       | aux nil isWild = (nil, isWild)
     in aux patrow false end
 
-  and fromPat (FST.AT_PAT atpat) = AT_PAT (fromAtpat atpat)
+  and fromPat (FST.AT_PAT atpat) = atpatToPat (fromAtpat atpat)
     | fromPat (FST.CON_PAT (lvid, atpat)) = CON_PAT (lvid, fromAtpat atpat)
     | fromPat (FST.INF_PAT (pat, vid, pat')) =
     INF_PAT (fromPat pat, vid, fromPat pat')
