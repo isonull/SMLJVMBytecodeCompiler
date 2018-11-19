@@ -4,7 +4,7 @@ structure LexUtils = struct
   fun revfold _ nil b = b
     | revfold f (x::xs) b = revfold f xs (f(x,b))
 
-  fun splitChars (c :: cs) a =
+  fun splitChars ((c :: cs) : char list) (a : char) =
     if c = a
     then [] :: (splitChars cs a)
     else (fn (a, (x :: xs)) => (a :: x) :: xs
@@ -32,7 +32,7 @@ structure LexUtils = struct
 
   fun intLex s =
     if isNeg s
-    then ~ (numLex s)
+    then ~ (numLex (String.substring (s, 1, (size s) - 1)))
     else numLex s
 
   fun wordLex s =
@@ -42,22 +42,33 @@ structure LexUtils = struct
     else numLex (substring (s, 2, (size s) - 2))
     )
 
-  fun floatLex s =
-  let
-    fun d2w d =
+  fun floatLex s = let
+
+    fun wholeToDecimal d =
       if d < 1.0
       then d
-      else d2w (d / 10.0)
-    fun flex1 s =
-    let
-      val d :: w :: nil = map (Real.fromInt o numLex) (splitString s #".")
-    in
-      d + (d2w w)
-    end
+      else wholeToDecimal (d / 10.0)
+
+    fun aux (s1 :: s2 :: nil) = let
+      val exp10 = intLex s2
+      fun calExp 0 = 1.0
+        | calExp n = if n < 0
+                     then (calExp (n + 1)) / 10.0
+                     else (calExp (n - 1)) * 10.0
+      in (aux [s1]) * (calExp exp10) end
+
+      | aux [s1] = let
+      val dw = map (Real.fromInt o intLex) (splitString s1 #".")
+      fun filt (d :: w :: nil) = (d, w)
+        | filt _ = raise LexUtilException
+      val (d, w) = filt dw
+      in if d > 0.0
+         then d + (wholeToDecimal w)
+         else d + ~ (wholeToDecimal w) end
+
+      | aux _ = raise LexUtilException
   in
-    if String.isSubstring "e" s
-    then 0.0(* TODO *)
-    else flex1 s
+    aux (splitString s #"e")
   end
 
   fun charLex s = String.sub (s, 2)
