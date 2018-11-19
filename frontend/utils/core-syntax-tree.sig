@@ -111,6 +111,9 @@ signature CORE_SYNTAX_TREE = sig
 
   exception FullSyntaxToCoreSyntaxException
 
+  val listToString : 'a list -> ('a -> string) -> string -> string
+  val optionToString : 'a option -> ('a -> string) -> string -> string
+
   val fromAtexp : FST.atexp -> atexp
   val fromInfexp : FST.infexp -> exp
   val fromExprow : FST.exprow -> exprow
@@ -134,5 +137,7 @@ signature CORE_SYNTAX_TREE = sig
 
   val fromLab : FST.lab -> lab
   val fromScon : FST.scon -> scon
+  val fromProg : FST.prog -> prog
+  val progToString : prog -> string
 
 end
