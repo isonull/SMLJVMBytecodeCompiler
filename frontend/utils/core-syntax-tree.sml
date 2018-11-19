@@ -146,7 +146,10 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
 
   and fromInfexp (FST.N_INFEXP (infexp, vid, infexp')) =
     INF_EXP(fromInfexp infexp, vid, fromInfexp infexp')
-    | fromInfexp (FST.APP_INFEXP (atexp :: nil)) = atexpToExp (fromAtexp atexp)
+
+    | fromInfexp (FST.APP_INFEXP [atexp]) = atexpToExp (fromAtexp atexp)
+    | fromInfexp (FST.APP_INFEXP [atexp, atexp']) =
+    APP_EXP (atexpToExp (fromAtexp atexp'), fromAtexp atexp)
     | fromInfexp (FST.APP_INFEXP (atexp :: appexp)) =
     APP_EXP (fromInfexp (FST.APP_INFEXP appexp) ,fromAtexp atexp)
     | fromInfexp (FST.APP_INFEXP nil) = raise FullSyntaxToCoreSyntaxException
@@ -286,7 +289,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   fun optionToString (SOME opt) toString empty = toString opt
     | optionToString NONE toString empty = empty
 
-  fun atexpToString (SCON_ATEXP scon) = sconToString scon
+  fun atexpToString (SCON_ATEXP scon) = sconToString scon 
     | atexpToString (LVID_ATEXP lvid) = lvidToString lvid
     | atexpToString (RCD_ATEXP exprow) = "{" ^ exprowToString exprow ^ "}"
     | atexpToString (LET_ATEXP (dec, exp)) =
@@ -295,9 +298,9 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
 
   and expToString (AT_EXP atexp) = atexpToString atexp
     | expToString (APP_EXP (exp, atexp)) =
-    (atexpToString atexp) ^ " " ^ (expToString exp)
+    (expToString exp) ^ " " ^ (atexpToString atexp)
     | expToString (INF_EXP (exp, vid, exp')) =
-    (expToString exp) ^ (vidToString vid) ^ (expToString exp')
+    (expToString exp) ^ " " ^ (vidToString vid) ^ " " ^(expToString exp')
     | expToString (TY_EXP (exp, ty)) = (expToString exp) ^ ":" ^ (tyToString ty)
     | expToString (HAND_EXP (exp, match)) =
     (expToString exp) ^ "HANDLE" ^ (matchToString match)
@@ -318,7 +321,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | decToString (OPEN_DEC (lstridseq)) =
     "OPEN " ^ (lstridseqToString lstridseq)
     | decToString (SEQ_DEC (dec, dec')) =
-    (decToString dec) ^ ";" ^ (decToString dec')
+    (decToString dec) ^ ";\n" ^ (decToString dec')
     | decToString (INF_DEC (intOption, vidseq)) =
     "INFIX " ^ (optionToString intOption Int.toString "") ^
     (vidseqToString vidseq)
@@ -339,7 +342,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and atpatToString WILD_ATPAT = "_"
     | atpatToString (SCON_ATPAT scon) = sconToString scon
     | atpatToString (LVID_ATPAT lvid) = lvidToString lvid
-    | atpatToString (RCD_ATPAT patrow) = 
+    | atpatToString (RCD_ATPAT patrow) =
     "{" ^ (patrowToString patrow) ^ "}"
     | atpatToString (PAT_ATPAT pat) = patToString pat
 
@@ -348,7 +351,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     (lvidToString lvid) ^ (atpatToString atpat)
     | patToString (INF_PAT (pat, vid, pat')) =
     (patToString pat) ^ (vidToString vid) ^ (patToString pat')
-    | patToString (TY_PAT (pat, ty)) = (patToString pat) ^ ":" ^ (tyToString ty)
+    | patToString (TY_PAT (pat, ty)) = (patToString pat) ^ " : " ^ (tyToString ty)
     | patToString (LAY_PAT (vid, tyOption, pat)) =
     (vidToString vid) ^ ":" ^ (optionToString tyOption tyToString " ") ^
     (patToString pat)
@@ -357,7 +360,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | tyToString (RCD_TY tyrow) = tyrowToString tyrow
     | tyToString (CON_TY (tyseq, ltycon)) =
     (tyseqToString tyseq) ^ (ltyconToString ltycon)
-    | tyToString (FUN_TY (ty, ty')) = (tyToString ty) ^ "->" ^ (tyToString ty')
+    | tyToString (FUN_TY (ty, ty')) = (tyToString ty) ^ " -> " ^ (tyToString ty')
 
   and sconToString (INT_SCON i) = Int.toString i
     | sconToString (REAL_SCON r) = Real.toString r
@@ -378,15 +381,19 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and lstridToString lstrid = lidToString lstrid
 
   and lidpreToString lidpre = listToString lidpre stridToString "."
-  and lidToString (lidpre, vid) = (lidpreToString lidpre) ^ 
+  and lidToString (lidpre, vid) = (lidpreToString lidpre) ^
     (if length lidpre > 0 then "." else "") ^ (vidToString vid)
 
   and lstridseqToString lstridseq = (listToString lstridseq lstridToString " ")
   and vidseqToString vidseq = listToString vidseq vidToString " "
   and vroweleToString (pat, exp) = (patToString pat) ^ " = " ^ (expToString exp)
   and vrowToString vrow = listToString vrow vroweleToString "AND"
-  and tyseqToString tyseq = listToString tyseq tyToString " "
-  and tyvarseqToString tyvarseq = listToString tyvarseq tyvarToString " "
+  and tyseqToString tyseq =
+    (listToString tyseq tyToString " ") ^
+    (if List.null tyseq then "" else " ")
+  and tyvarseqToString tyvarseq =
+    (listToString tyvarseq tyvarToString " ") ^
+    (if List.null tyvarseq then "" else " ")
   and exproweleToString (lab, exp) =
     (labToString lab) ^ " = " ^ (expToString exp)
   and exprowToString exprow = listToString exprow exproweleToString ","
@@ -394,24 +401,25 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     (patToString pat) ^ " => " ^ (expToString exp) ^ ""
   and matchToString match = listToString match mruleToString "\n|"
   and typbindeleToString (tyvarseq, tycon, ty) =
-    (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^ "=" ^ (tyToString ty)
+    (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^ " = " ^ (tyToString ty)
   and typbindToString typbind = listToString typbind typbindeleToString "and"
   and conbindeleToString (vid, tyOption) =
-    (vidToString vid) ^ "OF" ^ (optionToString tyOption tyToString "<>")
-  and conbindToString conbind = listToString conbind conbindeleToString "|"
+    (vidToString vid) ^ " OF " ^ (optionToString tyOption tyToString "<>")
+  and conbindToString conbind = listToString conbind conbindeleToString " |\n"
   and datbindeleToString (tyvarseq, tycon, conbind) =
     (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^
-    "=" ^ (conbindToString conbind)
+    " =\n" ^ (conbindToString conbind)
   and datbindToString datbind = listToString datbind datbindeleToString "and"
   and exbindToString exbind = listToString exbind exbindeleToString "and"
-  and patroweleToString (lab, pat) = (labToString lab) ^ "=" ^ (patToString pat)
+  and patroweleToString (lab, pat) = (labToString lab) ^ " = " ^ (patToString pat)
   and patrowToString (patrow, isWild) = listToString patrow patroweleToString ","
     ^ (if isWild then ",..." else "")
-  and tyroweleToString (lab, ty) = (labToString lab) ^ ":" ^ (tyToString ty)
-  and tyrowToString tyrow = listToString tyrow tyroweleToString ","
+  and tyroweleToString (lab, ty) = (labToString lab) ^ " : " ^ (tyToString ty)
+  and tyrowToString tyrow =
+    "{" ^ (listToString tyrow tyroweleToString ", ") ^ "}"
   and strdecToString dec = decToString dec
   and topdecToString strdec = strdecToString strdec
-  and progToString topdec = topdecToString topdec
+  and progToString topdec = topdecToString topdec ^ "\n"
 
 end
 

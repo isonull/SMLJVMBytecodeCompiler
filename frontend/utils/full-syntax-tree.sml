@@ -186,8 +186,8 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
   end
     | labAtexpToFnExp _ = raise DerivedFormException
 
-  fun caseExpToAppexp (CASE_EXP (e, m)) = [EXP_ATEXP (FN_EXP
-    m), EXP_ATEXP e]
+  fun caseExpToAppexp (CASE_EXP (e, m)) =
+    [EXP_ATEXP e, EXP_ATEXP (FN_EXP m)]
     | caseExpToAppexp _ = raise DerivedFormException
 
   fun ifExpToCaseExp (IF_EXP (e, e', e'')) = let
