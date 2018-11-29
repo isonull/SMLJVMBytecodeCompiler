@@ -3,7 +3,6 @@ Group is
 ../../utils/utils.cm
 ./varty.sml
 ./assty.sml
-./assty-set.sml
 ./type-name.sml
 ./type.sml
 ./type-scheme.sml

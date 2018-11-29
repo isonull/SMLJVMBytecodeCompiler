@@ -1,4 +1,4 @@
 Group is
 
-frontend/frontend.cm
-static1/semantic-object/semantic-object.cm
+./frontend/frontend.cm
+./static/static.cm
