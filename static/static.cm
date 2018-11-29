@@ -1,3 +1,7 @@
 Group is
 
 ./semantic-object/semantic-object.cm
+./initial-static-basis.sml
+
+$/basis.cm
+$SMLNJ-LIB/Util/smlnj-lib.cm

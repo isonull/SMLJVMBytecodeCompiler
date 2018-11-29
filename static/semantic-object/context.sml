@@ -12,5 +12,6 @@ structure Context = struct
     val (t, is) = TS.unify t1 t2
     val c' = instantiate c is in
     (c', t) end
-    
+
+  fun toString (t, u, e) = E.toString e
 end

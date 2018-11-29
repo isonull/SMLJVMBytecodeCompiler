@@ -40,14 +40,6 @@ structure Type = struct
     List.foldl (fn (t, s) => VS.union ((getVartySet t), s)) VS.empty ts
     | getVartySet (ASSTY _) = VS.empty
 
-  fun toString (VARTY v) = Varty.toString v
-    | toString (ROWTY r) =
-    "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}"
-    | toString (CONTY (ts, n)) =
-      (LA.toString ts toString ", ") ^ (TN.toString n)
-    | toString (FUNTY (t1, t2)) = (toString t1) ^ "->" ^ (toString t2)
-    | toString (ASSTY t) = Assty.toString t
-
   fun sub (VARTY vt) (VARTY vt', ty) = if vt' = vt then ty else (VARTY vt)
     | sub (VARTY v) (ASSTY a, _) = VARTY v
     | sub (ASSTY a) (ASSTY a', ty) = if a' = a then ty else (ASSTY a)
@@ -56,8 +48,7 @@ structure Type = struct
     | sub (FUNTY (argty, resty)) s = FUNTY (sub argty s, sub resty s)
     | sub (CONTY (tyseq, tyname)) s =
     CONTY (List.map (fn ty => sub ty s) tyseq, tyname)
-    | sub t1 (t2, t3) = raise WrongTypeForm ("WRONG SUB FORM" ^
-    (toString t1) ^ (toString t2) ^ (toString t3))
+    | sub t1 (t2, t3) = raise WrongTypeForm "WRONG SUB FORM"
 
   fun ins (VARTY vt) _ = VARTY vt
     | ins (ASSTY at) (at', ty) = if at' = at then ty else (ASSTY at)
@@ -168,5 +159,13 @@ structure Type = struct
     val t = substitute t1 subseq
     val insseq = ifs subseq
   in (t, insseq) end
+
+  fun toString (VARTY v) = Varty.toString v
+    | toString (ROWTY r) =
+    "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}"
+    | toString (CONTY (ts, n)) =
+      (LA.toString ts toString ",") ^ "." ^ (TN.toString n)
+    | toString (FUNTY (t1, t2)) = (toString t1) ^ "->" ^ (toString t2)
+    | toString (ASSTY t) = Assty.toString t
 
 end

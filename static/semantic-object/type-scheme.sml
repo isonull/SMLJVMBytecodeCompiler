@@ -7,6 +7,11 @@ structure TypeScheme = struct
   type ins = TY.varty * tysch
   type insseq = ins list
 
+  fun fromTyname (tn as (_, a, _)) = let
+    val is = List.tabulate (a, (fn x => x))
+    val ts = List.map (fn x => TY.VARTY x) is in
+    (VS.fromList is, TY.CONTY (ts, tn)) end
+
   (* remove bind varty not in the body *)
   fun reg (vs, t) = let
     val vst = TY.getVartySet t

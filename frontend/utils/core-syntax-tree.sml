@@ -113,7 +113,7 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
 
   exception FullSyntaxToCoreSyntaxException
 
-  (* WARN: there transformation may cause problem *
+  (* WARN: These transformations may cause problem *
    * target at preventing unnecessary construction *)
   fun atexpToExp (EXP_ATEXP e) = e
     | atexpToExp e = AT_EXP e
