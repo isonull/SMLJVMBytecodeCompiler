@@ -1,4 +1,16 @@
 structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
+  structure TC = TypeConstructor
+  structure VID = ValueIdentifier
+  structure SID = StructureIdentifier
+  structure LVID = LongValueIdentifier
+  structure LTC = LongTypeConstructor
+  structure LSID = LongStructureIdentifier
+  structure SC = SpecialConstant
+  structure LA = ListAux
+  structure OA = OptionAux
+
+  datatype lab = datatype Lab.lab
+  datatype scon = datatype SC.scon
 
   datatype atexp =
     SCON_ATEXP of scon |
@@ -57,17 +69,6 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     RCD_TY of tyrow |
     CON_TY of tyseq * ltycon |
     FUN_TY of ty * ty
-
-  and scon =
-    INT_SCON of int |
-    REAL_SCON of real |
-    WORD_SCON of word |
-    CHAR_SCON of char |
-    STR_SCON of string
-
-  and lab =
-    INT_LAB of int |
-    STR_LAB of string
 
   withtype id = string
   and tyvar = string
@@ -280,17 +281,8 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
 
   and fromProg prog = fromDec prog
 
-
-  fun listToString nil toString splitStr = ""
-    | listToString ls toString splitStr =
-    List.foldr (fn (a, b) => (a ^ splitStr ^ b)) (toString (List.last ls))
-               (map toString (List.take (ls, (length ls) - 1)))
-
-  fun optionToString (SOME opt) toString empty = toString opt
-    | optionToString NONE toString empty = empty
-
-  fun atexpToString (SCON_ATEXP scon) = sconToString scon 
-    | atexpToString (LVID_ATEXP lvid) = lvidToString lvid
+  fun atexpToString (SCON_ATEXP scon) = SC.toString scon
+    | atexpToString (LVID_ATEXP lvid) = LVID.toString lvid
     | atexpToString (RCD_ATEXP exprow) = "{" ^ exprowToString exprow ^ "}"
     | atexpToString (LET_ATEXP (dec, exp)) =
     "LET " ^ (decToString dec) ^ "IN " ^ (expToString exp) ^ "END"
@@ -323,10 +315,10 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | decToString (SEQ_DEC (dec, dec')) =
     (decToString dec) ^ ";\n" ^ (decToString dec')
     | decToString (INF_DEC (intOption, vidseq)) =
-    "INFIX " ^ (optionToString intOption Int.toString "") ^
+    "INFIX " ^ (OA.toString intOption Int.toString "") ^
     (vidseqToString vidseq)
     | decToString (INFR_DEC (intOption, vidseq)) =
-    "INFIXR " ^ (optionToString intOption Int.toString "") ^
+    "INFIXR " ^ (OA.toString intOption Int.toString "") ^
     (vidseqToString vidseq)
     | decToString (NOF_DEC vidseq) =
     "NONFIX " ^ (vidseqToString vidseq)
@@ -335,25 +327,25 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     | valbindToString (REC_VALBIND vrow) = "REC " ^ (vrowToString vrow)
 
   and exbindeleToString (VID_EXBIND_ELE (vid, tyOption)) =
-    (vidToString vid) ^ (optionToString tyOption tyToString "")
+    (vidToString vid) ^ (OA.toString tyOption tyToString "")
     | exbindeleToString (REP_EXBIND_ELE (vid, lvid)) =
-    (vidToString vid) ^ (lvidToString lvid)
+    (vidToString vid) ^ (LVID.toString lvid)
 
   and atpatToString WILD_ATPAT = "_"
-    | atpatToString (SCON_ATPAT scon) = sconToString scon
-    | atpatToString (LVID_ATPAT lvid) = lvidToString lvid
+    | atpatToString (SCON_ATPAT scon) = SC.toString scon
+    | atpatToString (LVID_ATPAT lvid) = LVID.toString lvid
     | atpatToString (RCD_ATPAT patrow) =
     "{" ^ (patrowToString patrow) ^ "}"
     | atpatToString (PAT_ATPAT pat) = patToString pat
 
   and patToString (AT_PAT atpat) = atpatToString atpat
     | patToString (CON_PAT (lvid, atpat)) =
-    (lvidToString lvid) ^ (atpatToString atpat)
+    (LVID.toString lvid) ^ (atpatToString atpat)
     | patToString (INF_PAT (pat, vid, pat')) =
     (patToString pat) ^ (vidToString vid) ^ (patToString pat')
     | patToString (TY_PAT (pat, ty)) = (patToString pat) ^ " : " ^ (tyToString ty)
     | patToString (LAY_PAT (vid, tyOption, pat)) =
-    (vidToString vid) ^ ":" ^ (optionToString tyOption tyToString " ") ^
+    (vidToString vid) ^ ":" ^ (OA.toString tyOption tyToString " ") ^
     (patToString pat)
 
   and tyToString (VAR_TY tyvar) = tyvarToString tyvar
@@ -362,14 +354,6 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
     (tyseqToString tyseq) ^ (ltyconToString ltycon)
     | tyToString (FUN_TY (ty, ty')) = (tyToString ty) ^ " -> " ^ (tyToString ty')
 
-  and sconToString (INT_SCON i) = Int.toString i
-    | sconToString (REAL_SCON r) = Real.toString r
-    | sconToString (WORD_SCON w) = Word.toString w
-    | sconToString (CHAR_SCON c) = Char.toString c
-    | sconToString (STR_SCON s) = "\"" ^ s ^ "\""
-
-  and labToString (INT_LAB i) = Int.toString i
-    | labToString (STR_LAB s) = s
 
   and idToString id = id
   and tyvarToString tyvar = "'" ^ tyvar
@@ -380,43 +364,43 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   and lvidToString lvid = lidToString lvid
   and lstridToString lstrid = lidToString lstrid
 
-  and lidpreToString lidpre = listToString lidpre stridToString "."
+  and lidpreToString lidpre = LA.toString lidpre stridToString "."
   and lidToString (lidpre, vid) = (lidpreToString lidpre) ^
     (if length lidpre > 0 then "." else "") ^ (vidToString vid)
 
-  and lstridseqToString lstridseq = (listToString lstridseq lstridToString " ")
-  and vidseqToString vidseq = listToString vidseq vidToString " "
+  and lstridseqToString lstridseq = (LA.toString lstridseq LSID.toString " ")
+  and vidseqToString vidseq = LA.toString vidseq vidToString " "
   and vroweleToString (pat, exp) = (patToString pat) ^ " = " ^ (expToString exp)
-  and vrowToString vrow = listToString vrow vroweleToString "AND"
+  and vrowToString vrow = LA.toString vrow vroweleToString "AND"
   and tyseqToString tyseq =
-    (listToString tyseq tyToString " ") ^
+    (LA.toString tyseq tyToString " ") ^
     (if List.null tyseq then "" else " ")
   and tyvarseqToString tyvarseq =
-    (listToString tyvarseq tyvarToString " ") ^
+    (LA.toString tyvarseq tyvarToString " ") ^
     (if List.null tyvarseq then "" else " ")
   and exproweleToString (lab, exp) =
-    (labToString lab) ^ " = " ^ (expToString exp)
-  and exprowToString exprow = listToString exprow exproweleToString ","
+    (Lab.toString lab) ^ " = " ^ (expToString exp)
+  and exprowToString exprow = LA.toString exprow exproweleToString ","
   and mruleToString (pat, exp) =
     (patToString pat) ^ " => " ^ (expToString exp) ^ ""
-  and matchToString match = listToString match mruleToString "\n|"
+  and matchToString match = LA.toString match mruleToString "\n|"
   and typbindeleToString (tyvarseq, tycon, ty) =
     (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^ " = " ^ (tyToString ty)
-  and typbindToString typbind = listToString typbind typbindeleToString "and"
+  and typbindToString typbind = LA.toString typbind typbindeleToString "and"
   and conbindeleToString (vid, tyOption) =
-    (vidToString vid) ^ " OF " ^ (optionToString tyOption tyToString "<>")
-  and conbindToString conbind = listToString conbind conbindeleToString " |\n"
+    (vidToString vid) ^ " OF " ^ (OA.toString tyOption tyToString "<>")
+  and conbindToString conbind = LA.toString conbind conbindeleToString " |\n"
   and datbindeleToString (tyvarseq, tycon, conbind) =
     (tyvarseqToString tyvarseq) ^ (tyconToString tycon) ^
     " =\n" ^ (conbindToString conbind)
-  and datbindToString datbind = listToString datbind datbindeleToString "and"
-  and exbindToString exbind = listToString exbind exbindeleToString "and"
-  and patroweleToString (lab, pat) = (labToString lab) ^ " = " ^ (patToString pat)
-  and patrowToString (patrow, isWild) = listToString patrow patroweleToString ","
+  and datbindToString datbind = LA.toString datbind datbindeleToString "and"
+  and exbindToString exbind = LA.toString exbind exbindeleToString "and"
+  and patroweleToString (lab, pat) = (Lab.toString lab) ^ " = " ^ (patToString pat)
+  and patrowToString (patrow, isWild) = LA.toString patrow patroweleToString ","
     ^ (if isWild then ",..." else "")
-  and tyroweleToString (lab, ty) = (labToString lab) ^ " : " ^ (tyToString ty)
+  and tyroweleToString (lab, ty) = (Lab.toString lab) ^ " : " ^ (tyToString ty)
   and tyrowToString tyrow =
-    "{" ^ (listToString tyrow tyroweleToString ", ") ^ "}"
+    "{" ^ (LA.toString tyrow tyroweleToString ", ") ^ "}"
   and strdecToString dec = decToString dec
   and topdecToString strdec = strdecToString strdec
   and progToString topdec = topdecToString topdec ^ "\n"

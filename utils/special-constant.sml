@@ -1,4 +1,4 @@
-structure Scon = struct
+structure SpecialConstant = struct
 
   datatype scon =
     INT_SCON of int |
@@ -83,4 +83,9 @@ structure Scon = struct
 
   fun stringLex s = substring (s, 1, (size s) - 2)
 
+  and toString (INT_SCON i) = Int.toString i
+    | toString (REAL_SCON r) = Real.toString r
+    | toString (WORD_SCON w) = Word.toString w
+    | toString (CHAR_SCON c) = Char.toString c
+    | toString (STR_SCON s) = "\"" ^ s ^ "\""
 end

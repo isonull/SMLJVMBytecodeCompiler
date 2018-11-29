@@ -7,6 +7,7 @@ Group is
 ./identifier.sml
 ./special-constant.sml
 ./list.sml
+./option.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

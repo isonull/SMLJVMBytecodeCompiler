@@ -1,19 +1,19 @@
 structure Lab = struct
   datatype lab =
-  STRLAB of string |
-  INTLAB of int
+  STR_LAB of string |
+  INT_LAB of int
 
-  fun toString (STRLAB s) = s
-    | toString (INTLAB i) = Int.toString i
+  fun toString (STR_LAB s) = s
+    | toString (INT_LAB i) = Int.toString i
 end
 
 structure LabKey : ORD_KEY = struct
   datatype ord_key = datatype Lab.lab
 
-  fun compare (STRLAB s, INTLAB i) = GREATER
-    | compare (INTLAB i, STRLAB s) = LESS
-    | compare (STRLAB s, STRLAB s') = String.compare (s,s')
-    | compare (INTLAB i, INTLAB i') = Int.compare (i,i')
+  fun compare (STR_LAB s, INT_LAB i) = GREATER
+    | compare (INT_LAB i, STR_LAB s) = LESS
+    | compare (STR_LAB s, STR_LAB s') = String.compare (s,s')
+    | compare (INT_LAB i, INT_LAB i') = Int.compare (i,i')
 
 end
 
@@ -23,7 +23,7 @@ structure LabBinaryMap = struct
   structure LBM = OrdMapAuxFn (BinaryMapFn (LabKey))
   open LBM
   fun fromList lst = let
-    val labs = List.tabulate (List.length lst, fn x => Lab.INTLAB x)
+    val labs = List.tabulate (List.length lst, fn x => Lab.INT_LAB x)
     val listPair = ListPair.zip (labs, lst)
   in fromListPair listPair end
 end

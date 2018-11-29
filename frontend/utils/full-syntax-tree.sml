@@ -1,5 +1,9 @@
 structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
 
+  structure SC = SpecialConstant
+  datatype lab = datatype Lab.lab
+  datatype scon = datatype SC.scon
+
   datatype atexp =
     SCON_ATEXP of scon |
     LVID_ATEXP of lvid |
@@ -79,17 +83,6 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
     CON_TY of tyseq * ltycon |
     TUP_TY of tyseq |
     FUN_TY of ty * ty
-
-  and scon =
-    INT_SCON of int |
-    REAL_SCON of real |
-    WORD_SCON of word |
-    CHAR_SCON of char |
-    STR_SCON of string
-
-  and lab =
-    INT_LAB of int |
-    STR_LAB of string
 
   withtype id = string
   and tyvar = string

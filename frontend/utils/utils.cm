@@ -6,4 +6,5 @@ core-syntax-tree.sig
 core-syntax-tree.sml
 pos.sml
 lex-utils.sml
+../../utils/utils.cm
 $/basis.cm

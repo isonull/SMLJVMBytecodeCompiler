@@ -1,5 +1,7 @@
 signature CORE_SYNTAX_TREE = sig
 
+  type lab
+  type scon
   datatype atexp =
     SCON_ATEXP of scon |
     LVID_ATEXP of lvid |
@@ -58,17 +60,6 @@ signature CORE_SYNTAX_TREE = sig
     CON_TY of tyseq * ltycon |
     FUN_TY of ty * ty
 
-  and scon =
-    INT_SCON of int |
-    REAL_SCON of real |
-    WORD_SCON of word |
-    CHAR_SCON of char |
-    STR_SCON of string
-
-  and lab =
-    INT_LAB of int |
-    STR_LAB of string
-
   withtype id = string
   and tyvar = string
 
@@ -110,9 +101,6 @@ signature CORE_SYNTAX_TREE = sig
   and prog = topdec
 
   exception FullSyntaxToCoreSyntaxException
-
-  val listToString : 'a list -> ('a -> string) -> string -> string
-  val optionToString : 'a option -> ('a -> string) -> string -> string
 
   val fromAtexp : FST.atexp -> atexp
   val fromInfexp : FST.infexp -> exp
