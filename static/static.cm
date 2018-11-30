@@ -2,6 +2,8 @@ Group is
 
 ./semantic-object/semantic-object.cm
 ./initial-static-basis.sml
+./static-inference.sml
+../frontend/utils/utils.cm
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

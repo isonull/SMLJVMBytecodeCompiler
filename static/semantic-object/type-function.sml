@@ -10,6 +10,8 @@ structure TypeFunction = struct
     val ts = List.map (fn x => TY.VARTY x) is in
     (is, TY.CONTY (ts, tn)) end
 
+  fun getArity (ts, _) = List.length ts
+
   fun toString (vs, t) = 
     "A(" ^ (LA.toString vs VT.toString ",") ^ ")." ^ (TY.toString t)
 

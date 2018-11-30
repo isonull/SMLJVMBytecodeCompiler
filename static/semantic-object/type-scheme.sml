@@ -2,6 +2,7 @@ structure TypeScheme = struct
 
   structure TY = Type
   structure VS = VartySet
+  structure IM = IntBinaryMapAux
 
   type tysch = TY.vartyset * TY.ty
   type ins = TY.varty * tysch
@@ -57,9 +58,11 @@ structure TypeScheme = struct
     val clos = VS.union (vs1, vs2)
     val (t, insseq) = TY.unify clos t1 t2
     val (clos', t) = reg (clos, t)
-    val insseq' = map (fn (v, t) => (v, reg (clos', t))) insseq in
-    ((clos', t), insseq') end
+    val insseq' = map (fn (v, t) => (v, reg (clos', t))) insseq
+    val insmap = IM.fromListPair insseq' in
+    ((clos', t), insmap) end
 
   fun toString (vs, t) =
     "V" ^ (VS.toString vs) ^ "." ^ (TY.toString t)
 end
+
