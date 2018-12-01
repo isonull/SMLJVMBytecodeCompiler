@@ -17,7 +17,7 @@ structure Context = struct
   fun unify (t, u, i, e) t1 t2 = let
     val (t, ni) = TS.unify t1 t2
     val i' = I.unify i ni in
-    ((t, u, i', e) , t) end
+    ((t, u, i', e), t) end
 
 
   (* TODO implicit type variable *)

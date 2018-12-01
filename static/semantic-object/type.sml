@@ -34,7 +34,7 @@ structure Type = struct
   fun getVartySet (VARTY v) = VS.singleton v
     | getVartySet (ROWTY r) =
     LM.foldl (fn (t, s) => VS.union ((getVartySet t), s)) VS.empty r
-    | getVartySet (FUNTY (t1, t2)) = 
+    | getVartySet (FUNTY (t1, t2)) =
     VS.union ((getVartySet t1), (getVartySet t2))
     | getVartySet (CONTY (ts, n)) =
     List.foldl (fn (t, s) => VS.union ((getVartySet t), s)) VS.empty ts
@@ -68,6 +68,27 @@ structure Type = struct
   fun instantiate ty insseq = List.foldl (fn (i, ty) => ins ty i) ty insseq
   fun bind ty bndseq = List.foldl (fn (b, ty) => bnd ty b) ty bndseq
 
+  fun isBnd (VARTY _, _) = true
+    | isBnd (ASSTY _, _) = false
+    | isBnd (_, _) = raise WrongTypeForm "WRONG SUB FORM"
+
+  fun isIns (VARTY _, _) = false
+    | isIns (ASSTY _, _) = true
+    | isIns (_, _) = raise WrongTypeForm "WRONG SUB FORM"
+
+  fun bndseqFromSubseq subs = let
+    val sbnd = List.filter isBnd subs 
+    fun aux (VARTY a, b) = (a, b) 
+      | aux (_, _) = raise WrongTypeForm "WRONG SUB FORM" in
+    map aux sbnd end
+
+  fun insseqFromSubseq subs = let
+    val sins = List.filter isIns subs
+    fun aux (ASSTY a, b) = (a, b)
+      | aux (_, _) = raise WrongTypeForm "WRONG SUB FORM" in
+    map aux sins end
+
+
   (* check a type contains a varty or assty *)
   fun ctva (VARTY v') (VARTY v) = v = v'
     | ctva (ASSTY _) (VARTY _) = false
@@ -82,23 +103,23 @@ structure Type = struct
 
   (* generate subseq and insseq for unification *)
   local
-  fun aux cs (VARTY v1) (VARTY v2) s true =
+  fun aux cs (VARTY v1) (VARTY v2) s true = 
     if v1 = v2 then s else
       if IS.member (cs, v1)
       then (VARTY v1, VARTY v2) :: s else
         if IS.member (cs, v2)
         then (VARTY v2, VARTY v1) :: s
-        else raise UnifyFail "OPEN VARTY PAIR"
+        else raise UnifyFail "OPEN VARTY PAIR" 
 
-    | aux cs (VARTY v) (ASSTY a) s true =
+    | aux cs (VARTY v) (ASSTY a) s true = 
     if IS.member (cs, v)
     then (VARTY v, ASSTY a) :: s
     else (ASSTY a, VARTY v) :: s
 
-    | aux cs (ASSTY a) (VARTY v) s true =
-    aux cs (VARTY v) (ASSTY a) s true
+    | aux cs (ASSTY a) (VARTY v) s true = 
+    aux cs (VARTY v) (ASSTY a) s true 
 
-    | aux cs (ASSTY a1) (ASSTY a2) s true =
+    | aux cs (ASSTY a1) (ASSTY a2) s true = 
     if a1 = a2 then s else (ASSTY a1, ASSTY a2) :: s
 
     | aux cs (VARTY v) ty s true =
@@ -120,7 +141,7 @@ structure Type = struct
     aux cs (ASSTY a) ty s true
 
     | aux cs (FUNTY (a1, r1)) (FUNTY (a2, r2)) s d = let
-      val s' = aux cs a1 a2 s d
+      val s' = aux cs a1 a2 s false
       val s'' = aux cs a1 a2 s' false
     in s'' @ (s' @ s) end
 
@@ -141,23 +162,31 @@ structure Type = struct
     else raise UnifyFail "TYNAME DIFFERENT OR ERROR APPLY"
 
     | aux cs t1 t2 s false = let
-      val t1' = substitute t1 s
-      val t2' = substitute t2 s
+      val t1' = substitute t1 (List.rev s)
+      val t2' = substitute t2 (List.rev s)
     in aux cs t1' t2' s true end
 
     | aux _ _ _ _ true = raise UnifyFail "NO RULE APPLY" in
+
   fun gs cs t1 t2 = List.rev (aux cs t1 t2 [] true) end
 
   (* generate type instantiation from substitution sequence*)
-  fun ifs ((ASSTY a, ty) :: ss) = 
-    (a, substitute ty ss) :: (ifs ss)
-    | ifs (_ :: ss) = ifs ss
-    | ifs [] = []
+  (*fun ifs ((ASSTY a, ty) :: ss) =*)
+    (*(a, substitute ty ss) :: (ifs ss)*)
+    (*| ifs (_ :: ss) = ifs ss*)
+    (*| ifs [] = []*)
+
+  (* truncate the substitution, make them immediate and so separatable*)
+  fun truncateSubseq ((t1, t2) :: ss) = 
+    (t1, substitute t2 ss) :: (truncateSubseq ss)
+    | truncateSubseq [] = []
 
   fun unify cs t1 t2 = let
     val subseq = gs cs t1 t2
-    val t = substitute t1 subseq
-    val insseq = ifs subseq
+    val tsubseq = truncateSubseq subseq
+    val insseq = insseqFromSubseq tsubseq
+    val bndseq = bndseqFromSubseq tsubseq
+    val t = bind t1 bndseq
   in (t, insseq) end
 
   fun toString (VARTY v) = Varty.toString v

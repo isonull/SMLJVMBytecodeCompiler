@@ -14,7 +14,7 @@ Group is
 ./structure-environment.sml
 ./type-environment.sml
 ./environment.sml
-./instantiation-map.sml
+./instantiation-environment.sml
 ./tyvar-environment.sml
 ./type-name-set.sml
 ./context.sml
