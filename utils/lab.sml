@@ -23,6 +23,7 @@ structure LabBinaryMap = struct
   structure LBM = OrdMapAuxFn (BinaryMapFn (LabKey))
   open LBM
   fun fromList lst = let
+    (* in SML/NJ this index starts from 1 *)
     val labs = List.tabulate (List.length lst, fn x => Lab.INT_LAB x)
     val listPair = ListPair.zip (labs, lst)
   in fromListPair listPair end

@@ -10,15 +10,12 @@ structure Context = struct
   datatype env = datatype E.env
   type context = T.typenameset * U.tyvarenv * I.insenv * E.env
 
-  fun instantiate (t, u, e) is = (t, u, E.instantiate e is)
-  fun getValstr (_, _, e) lvid = E.getValstr e lvid
-  fun getTystr (_, _, e) ltycon = E.getTystr e ltycon
+  (*fun instantiate (t, u, e) is = (t, u, E.instantiate e is)*)
+  fun getValstr (_, _, _, e) lvid = E.getValstr e lvid
+  fun getTystr (_, _, _, e) ltycon = E.getTystr e ltycon
 
-  fun unify (t, u, i, e) t1 t2 = let
-    val (t, ni) = TS.unify t1 t2
-    val i' = I.unify i ni in
-    ((t, u, i', e), t) end
-
+  fun insenvAugment (t, u, i, e) i' =
+    (t, u, I.unify i i', e)
 
   (* TODO implicit type variable *)
   fun valenvAugment (t, u, i, e) ve =
@@ -37,5 +34,5 @@ structure Context = struct
   fun envAugment c (ENV (se, te, ve)) = 
     valenvAugment (tyenvAugment (strenvAugment c se) te) ve
 
-  fun toString (t, u, e) = E.toString e
+  fun toString (t, u, i, e) = E.toString e
 end

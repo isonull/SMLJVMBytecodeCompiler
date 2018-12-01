@@ -3,7 +3,9 @@ structure TypeScheme = struct
   structure TY = Type
   structure VS = VartySet
   structure IM = IntBinaryMapAux
+  structure LM = LabBinaryMap
 
+  datatype ty = datatype TY.ty
   type tysch = TY.vartyset * TY.ty
   type ins = TY.varty * tysch
   type insseq = ins list
@@ -15,31 +17,35 @@ structure TypeScheme = struct
 
   (* remove bind varty not in the body *)
   fun reg (vs, t) = let
-    val vst = TY.getVartySet t
+    val vst = TY.getVartyset t
     val vs' = VS.intersection (vs, vst) in
     (vs', t) end
 
-  fun getOpenVartySet (vs, t) =
-    VS.difference (TY.getVartySet t, vs)
+  fun getOpenVartyset (vs, t) =
+    VS.difference (TY.getVartyset t, vs)
+
+  fun disjointVartyset (vs, t) evs = let
+    val ovs = getOpenVartyset (vs, t)
+    val ex = VS.union (ovs, evs)
+    val (vs', tvsubseq) = VS.disjoint vs ex
+    val bndseq = map (fn (x, y) => (x, TY.VARTY y)) tvsubseq
+    val t' = TY.bind t bndseq in
+    reg (vs', t') end
 
   fun disjoint ts1 ts2 = let
-    fun aux (vs1, t1) (vs2, t2) = let
-      val ovs1 = getOpenVartySet (vs1, t1)
-      val ex1 = VS.union (ovs1, TY.getVartySet t2)
-      val (vs1', subseq1) = VS.disjoint vs1 ex1
-      val subseq1 = map (fn (x, y) => (x, TY.VARTY y)) subseq1
-      val t1' = TY.bind t1 subseq1 in
-      reg (vs1', t1') end
-
-    val ts1' = aux ts1 ts2
-    val ts2' = aux ts2 ts1' in
+    val ts1' = disjointVartyset ts1 (TY.getVartyset (#2 ts2))
+    val ts2' = disjointVartyset ts2 (TY.getVartyset (#2 ts1')) in
     (ts1', ts2') end
 
-  fun disjointList (t1 :: t2 :: ts) = let
-    val (t1', t2') = disjoint t1 t2 in
-    t1' :: (disjointList (t2 :: ts)) end
-    | disjointList [t] = [t]
-    | disjointList [] = []
+  fun disjointList ts = let
+    fun aux (t :: ts) cs  = let
+      val ev = List.foldl (fn ((_, t), vs) =>
+        VS.union (TY.getVartyset t, vs)) VS.empty (cs @ ts)
+      val t' = disjointVartyset t ev in
+      t' :: (aux ts (t' :: cs)) end
+      | aux [] _ = [] in
+    aux ts [] end
+
 
   fun instantiate ts tsis = let
     val tss = List.map (fn (a, ts) => ts) tsis
@@ -52,6 +58,18 @@ structure TypeScheme = struct
     val t'' = TY.instantiate t' tyis'
     val vs'' = VS.unions (List.map (fn (vs, t) => vs) tstss') in
     reg (vs'', t'') end
+
+  fun getFunTysch ts1 ts2 = let
+    val ((v1, t1), (v2, t2)) = disjoint ts1 ts2
+    val v = VS.union (v1, v2)
+    val t = FUNTY (t1, t2) in
+    (v, t) end
+
+  fun insertRowTysch rts lab ts = let
+    val ((v1, ROWTY (row)), (v2, t)) = disjoint rts ts
+    val v = VS.union (v1, v2)
+    val t = ROWTY (LM.insert (row, lab, t)) in
+    (v, t) end
 
   fun unify ts1 ts2 = let
     val ((vs1, t1), (vs2, t2)) = disjoint ts1 ts2

@@ -31,14 +31,14 @@ structure Type = struct
   exception WrongTypeForm of string
   exception UnifyFail of string
 
-  fun getVartySet (VARTY v) = VS.singleton v
-    | getVartySet (ROWTY r) =
-    LM.foldl (fn (t, s) => VS.union ((getVartySet t), s)) VS.empty r
-    | getVartySet (FUNTY (t1, t2)) =
-    VS.union ((getVartySet t1), (getVartySet t2))
-    | getVartySet (CONTY (ts, n)) =
-    List.foldl (fn (t, s) => VS.union ((getVartySet t), s)) VS.empty ts
-    | getVartySet (ASSTY _) = VS.empty
+  fun getVartyset (VARTY v) = VS.singleton v
+    | getVartyset (ROWTY r) =
+    LM.foldl (fn (t, s) => VS.union ((getVartyset t), s)) VS.empty r
+    | getVartyset (FUNTY (t1, t2)) =
+    VS.union ((getVartyset t1), (getVartyset t2))
+    | getVartyset (CONTY (ts, n)) =
+    List.foldl (fn (t, s) => VS.union ((getVartyset t), s)) VS.empty ts
+    | getVartyset (ASSTY _) = VS.empty
 
   fun sub (VARTY vt) (VARTY vt', ty) = if vt' = vt then ty else (VARTY vt)
     | sub (VARTY v) (ASSTY a, _) = VARTY v
@@ -77,8 +77,8 @@ structure Type = struct
     | isIns (_, _) = raise WrongTypeForm "WRONG SUB FORM"
 
   fun bndseqFromSubseq subs = let
-    val sbnd = List.filter isBnd subs 
-    fun aux (VARTY a, b) = (a, b) 
+    val sbnd = List.filter isBnd subs
+    fun aux (VARTY a, b) = (a, b)
       | aux (_, _) = raise WrongTypeForm "WRONG SUB FORM" in
     map aux sbnd end
 
@@ -103,23 +103,23 @@ structure Type = struct
 
   (* generate subseq and insseq for unification *)
   local
-  fun aux cs (VARTY v1) (VARTY v2) s true = 
+  fun aux cs (VARTY v1) (VARTY v2) s true =
     if v1 = v2 then s else
       if IS.member (cs, v1)
       then (VARTY v1, VARTY v2) :: s else
         if IS.member (cs, v2)
         then (VARTY v2, VARTY v1) :: s
-        else raise UnifyFail "OPEN VARTY PAIR" 
+        else raise UnifyFail "OPEN VARTY PAIR"
 
-    | aux cs (VARTY v) (ASSTY a) s true = 
+    | aux cs (VARTY v) (ASSTY a) s true =
     if IS.member (cs, v)
     then (VARTY v, ASSTY a) :: s
     else (ASSTY a, VARTY v) :: s
 
-    | aux cs (ASSTY a) (VARTY v) s true = 
-    aux cs (VARTY v) (ASSTY a) s true 
+    | aux cs (ASSTY a) (VARTY v) s true =
+    aux cs (VARTY v) (ASSTY a) s true
 
-    | aux cs (ASSTY a1) (ASSTY a2) s true = 
+    | aux cs (ASSTY a1) (ASSTY a2) s true =
     if a1 = a2 then s else (ASSTY a1, ASSTY a2) :: s
 
     | aux cs (VARTY v) ty s true =
@@ -177,7 +177,7 @@ structure Type = struct
     (*| ifs [] = []*)
 
   (* truncate the substitution, make them immediate and so separatable*)
-  fun truncateSubseq ((t1, t2) :: ss) = 
+  fun truncateSubseq ((t1, t2) :: ss) =
     (t1, substitute t2 ss) :: (truncateSubseq ss)
     | truncateSubseq [] = []
 
