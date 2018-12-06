@@ -20,6 +20,7 @@ end
 structure LabBinarySet = OrdSetAuxFn (BinarySetFn (LabKey))
 
 structure LabBinaryMap = struct
+  exception LabDuplication
   structure LBM = OrdMapAuxFn (BinaryMapFn (LabKey))
   open LBM
   fun fromList lst = let
@@ -27,4 +28,10 @@ structure LabBinaryMap = struct
     val labs = List.tabulate (List.length lst, fn x => Lab.INT_LAB x)
     val listPair = ListPair.zip (labs, lst)
   in fromListPair listPair end
+
+  fun insertUnoccupied map key value = let
+    val oriOp = find (map, key) in
+    if isSome oriOp then
+      raise LabDuplication else
+      insert (map, key, value) end
 end

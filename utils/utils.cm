@@ -3,6 +3,7 @@ Group is
 ./lab.sml
 ./map.sml
 ./set.sml
+./integer.sml
 ./string.sml
 ./identifier.sml
 ./special-constant.sml

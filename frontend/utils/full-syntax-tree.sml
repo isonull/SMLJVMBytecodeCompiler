@@ -160,12 +160,12 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
     | unitAtexpToRcdAtexp _ = raise DerivedFormException
 
   fun tupAtexpToRcdAtexp (TUP_ATEXP es) = let
-    fun aux (e :: es) i = (INT_LAB 1, e) :: (aux es (i + 1))
+    fun aux (e :: es) i = (INT_LAB i, e) :: (aux es (i + 1))
       | aux nil _ = nil
   in
     if length es < 2
     then raise DerivedFormException
-    else RCD_ATEXP (aux es 1)
+    else RCD_ATEXP (aux es 0)
   end
     | tupAtexpToRcdAtexp _ = raise DerivedFormException
 

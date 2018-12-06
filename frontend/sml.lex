@@ -29,8 +29,8 @@ ascii = {digit}|{letter};
 int = ~?{num};
 word = (0w{num})|(0w{hex});
 float = (~?{num}\.{num})|(~?{num}(\.{num})?e~?{num});
-char = #"({ascii})";
-string = "{ascii}*";
+char = #\"({ascii})\";
+string = \"{ascii}*\";
 
 symbol = [!%&$#+-/:<=>?@\~‘^|*];
 comment = \(\*.*\*\);

@@ -1,11 +1,12 @@
 structure Type = struct
   open TypeName
   structure LM = LabBinaryMap
-  structure IS = IntBinarySet
+  structure IS = IntBinarySetAux
   structure LA = ListAux
   structure LPA = ListPairAux
   structure TN = TypeName
   structure VS = VartySet
+  structure AS = IntBinarySetAux
 
   datatype ty =
     VARTY of varty |
@@ -39,6 +40,15 @@ structure Type = struct
     | getVartyset (CONTY (ts, n)) =
     List.foldl (fn (t, s) => VS.union ((getVartyset t), s)) VS.empty ts
     | getVartyset (ASSTY _) = VS.empty
+
+  fun getAsstyset (VARTY _) = AS.empty
+    | getAsstyset (ROWTY r) =
+    LM.foldl (fn (t, s) => AS.union ((getAsstyset t), s)) AS.empty r
+    | getAsstyset (FUNTY (t1, t2)) =
+    AS.union ((getAsstyset t1), (getAsstyset t2))
+    | getAsstyset (CONTY (ts, n)) =
+    List.foldl (fn (t, s) => AS.union ((getAsstyset t), s)) AS.empty ts
+    | getAsstyset (ASSTY a) = AS.singleton a
 
   fun sub (VARTY vt) (VARTY vt', ty) = if vt' = vt then ty else (VARTY vt)
     | sub (VARTY v) (ASSTY a, _) = VARTY v
@@ -187,9 +197,11 @@ structure Type = struct
     val insseq = insseqFromSubseq tsubseq
     val bndseq = bndseqFromSubseq tsubseq
     val t = bind t1 bndseq
-  in (t, insseq) end
+  in (print ((toString t1) ^ " --- TY.1 \n" ^ 
+             (toString t2) ^ " --- TY.2 \n" ^
+             (toString t) ^  " --- TY.3 \n"));(t, insseq) end
 
-  fun toString (VARTY v) = Varty.toString v
+  and toString (VARTY v) = Varty.toString v
     | toString (ROWTY r) =
     "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}"
     | toString (CONTY (ts, n)) =

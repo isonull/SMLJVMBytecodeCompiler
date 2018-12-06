@@ -8,9 +8,12 @@ structure InitialStaticBasis = struct
   structure SM = StringBinaryMap
   structure TNS = TypeNameBinarySet
 
+  structure T = TypeNameEnvironment
+  structure U = TypeVariableEnvironment
+
   datatype ty = datatype TY.ty
   datatype idstat = datatype IdStatus.idstat
-  
+
   val unitTycon = "unit"
   val boolTycon = "bool"
   val intTycon  = "int"
@@ -57,7 +60,7 @@ structure InitialStaticBasis = struct
 
   val boolValstr = (boolTysch, CON)
   val nilListValstr = (listTysch, CON)
-  val conListValstr = ((VS.fromList [0], 
+  val conListValstr = ((VS.fromList [0],
     FUNTY (ROWTY (LM.fromList [VARTY 0, CONTY ([VARTY 0], listTyname)]),
            CONTY ([VARTY 0], listTyname))), CON)
   val refValstr = ((VS.fromList [0], FUNTY (VARTY 0, (CONTY ([VARTY 0], refTyname)))), CON)
@@ -70,8 +73,8 @@ structure InitialStaticBasis = struct
   val strValenv = SM.empty
   val charValenv = SM.empty
   val exnValenv = SM.empty
-  
-  val boolValenv = SM.fromListPair 
+
+  val boolValenv = SM.fromListPair
     [("true", boolValstr), ("false", boolValstr)]
 
   val listValenv = SM.fromListPair
@@ -97,7 +100,7 @@ structure InitialStaticBasis = struct
 
   val tyenv = SM.fromListPair tyenvMapListPair
 
-  val vidList = ["ref", "nil", "true", "false", "Match", "Bind", 
+  val vidList = ["ref", "nil", "true", "false", "Match", "Bind",
     "::", "=", ":="]
 
   val refValstr   = refValstr
@@ -108,10 +111,10 @@ structure InitialStaticBasis = struct
   val bindValstr  = exnValstr
   val conValstr   = conListValstr
   val eqValstr    = ((VS.singleton 0,
-    FUNTY (ROWTY (LM.fromList [VARTY 0, VARTY 0]), 
+    FUNTY (ROWTY (LM.fromList [VARTY 0, VARTY 0]),
            CONTY ([], boolTyname))), VAL)
   val signValstr  = ((VS.singleton 0,
-    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY 0], refTyname), VARTY 0]), 
+    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY 0], refTyname), VARTY 0]),
            ROWTY LM.empty)), VAL)
 
   val valstrList = [refValstr, nilValstr, trueValstr, falseValstr,
@@ -123,9 +126,9 @@ structure InitialStaticBasis = struct
 
   val env = Environment.ENV (strenv, tyenv, valenv)
 
-  val tynameset = TNS.fromList tynameList
+  val tynameset = T.fromTynameset (TNS.fromList tynameList)
 
-  val tyvarset = TypeNameBinarySet.empty
+  val tyvarset = U.empty
 
   val context = (tynameset, tyvarset, env)
 

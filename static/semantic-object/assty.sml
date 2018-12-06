@@ -9,3 +9,10 @@ structure Assty = struct
   in "~" ^ (aux n) end
 
 end
+
+structure AsstySet = struct
+
+  open IntBinarySetAux
+
+  fun getNewAssty set = getExclusion set 0 (fn x => x + 1)
+end

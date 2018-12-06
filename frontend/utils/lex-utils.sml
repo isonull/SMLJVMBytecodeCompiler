@@ -73,6 +73,7 @@ structure LexUtils = struct
 
   fun charLex s = String.sub (s, 2)
 
-  fun stringLex s = substring (s, 1, (size s) - 2)
+  fun stringLex s =
+    substring (s, 1, (size s) - 2)
 
 end

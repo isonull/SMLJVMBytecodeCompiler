@@ -10,6 +10,8 @@ structure TypeScheme = struct
   type ins = TY.varty * tysch
   type insseq = ins list
 
+  val wild = (VS.singleton 0, VARTY 0)
+
   fun fromTyname (tn as (_, a, _)) = let
     val is = List.tabulate (a, (fn x => x))
     val ts = List.map (fn x => TY.VARTY x) is in
@@ -21,8 +23,13 @@ structure TypeScheme = struct
     val vs' = VS.intersection (vs, vst) in
     (vs', t) end
 
+  fun getFunTyschRes (vs, FUNTY (t1, t2)) = reg (vs, t2)
+    | getFunTyschRes _ = raise TY.WrongTypeForm "getFunTyschRes"
+
   fun getOpenVartyset (vs, t) =
     VS.difference (TY.getVartyset t, vs)
+
+  fun getAsstyset (vs, t) = TY.getAsstyset t
 
   fun disjointVartyset (vs, t) evs = let
     val ovs = getOpenVartyset (vs, t)
@@ -66,9 +73,11 @@ structure TypeScheme = struct
     (v, t) end
 
   fun insertRowTysch rts lab ts = let
-    val ((v1, ROWTY (row)), (v2, t)) = disjoint rts ts
+    fun aux ((v1, ROWTY row), (v2, t)) = (v1, row, v2, t)
+      | aux _ = raise TY.WrongTypeForm "insertRowTysch"
+    val (v1, row, v2, t) = aux (disjoint rts ts)
     val v = VS.union (v1, v2)
-    val t = ROWTY (LM.insert (row, lab, t)) in
+    val t = ROWTY (LM.insertUnoccupied row lab t) in
     (v, t) end
 
   fun unify ts1 ts2 = let
@@ -78,9 +87,12 @@ structure TypeScheme = struct
     val (clos', t) = reg (clos, t)
     val insseq' = map (fn (v, t) => (v, reg (clos', t))) insseq
     val insmap = IM.fromListPair insseq' in
-    ((clos', t), insmap) end
+    (print ((toString ts1) ^        " --- TS.1 \n" ^ 
+            (toString ts2) ^        " --- TS.2 \n" ^
+            (toString (clos', t)) ^ " --- TS.3 \n" ^
+            (IM.toString insmap Assty.toString toString ">" ";") ^ " --- TS.4 \n"));((clos', t), insmap) end
 
-  fun toString (vs, t) =
+  and toString (vs, t) =
     "V" ^ (VS.toString vs) ^ "." ^ (TY.toString t)
 end
 
