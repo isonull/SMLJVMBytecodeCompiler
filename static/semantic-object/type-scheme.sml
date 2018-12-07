@@ -6,6 +6,7 @@ structure TypeScheme = struct
   structure LM = LabBinaryMap
 
   datatype ty = datatype TY.ty
+
   type tysch = TY.vartyset * TY.ty
   type ins = TY.varty * tysch
   type insseq = ins list
@@ -87,7 +88,7 @@ structure TypeScheme = struct
     val (clos', t) = reg (clos, t)
     val insseq' = map (fn (v, t) => (v, reg (clos', t))) insseq
     val insmap = IM.fromListPair insseq' in
-    (print ((toString ts1) ^        " --- TS.1 \n" ^ 
+    (print ((toString ts1) ^        " --- TS.1 \n" ^
             (toString ts2) ^        " --- TS.2 \n" ^
             (toString (clos', t)) ^ " --- TS.3 \n" ^
             (IM.toString insmap Assty.toString toString ">" ";") ^ " --- TS.4 \n"));((clos', t), insmap) end

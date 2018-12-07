@@ -1,6 +1,7 @@
 structure Varty = struct
 
   structure SA = StringAux
+
   type varty = int
 
   fun toString n = let
@@ -12,9 +13,10 @@ end
 
 structure VartySet = struct
 
+  open IntBinarySetAux
+
   structure IS = IntBinarySetAux
   structure VT = Varty
-  open IS
 
   type vartyset = IS.set
   type sub = VT.varty * VT.varty
@@ -25,12 +27,12 @@ structure VartySet = struct
   (* throw NotFound *)
   fun sub s (a, b) = IS.add ((IS.delete (s, a)), b)
 
-  fun substitute set subseq = 
+  fun substitute set subseq =
     List.foldl (fn (sb, set) => sub set sb) set subseq
 
   (* generate a subseq for s on excluding es *)
   fun aux (v :: vs) es =
-    if IS.member (es, v) then 
+    if IS.member (es, v) then
       let val ex = IS.union (es, IS.fromList vs)
         val n = getExclusion ex 0 (fn x => x + 1)
         val es' = IS.add (es, n)

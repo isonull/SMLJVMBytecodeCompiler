@@ -10,6 +10,7 @@ structure Context = struct
   structure VE = ValueEnvironment
 
   datatype env = datatype E.env
+
   type context = T.tynameenv * U.tyvarenv * I.insenv * E.env
 
   val empty = (T.empty, U.empty, E.empty)
@@ -17,14 +18,20 @@ structure Context = struct
   fun getTyname (t, u, e) ltycon = T.find (t, ltycon)
 
   fun getVarty (t, u, e) tyvar = U.find (u, tyvar)
+
   fun getVartyset (t, u, e) = U.getVartyset u
+
   fun addTyvarseq (t, u, e) tyvarseq = (t, U.addTyvarseq u tyvarseq, e)
+
   fun isTyvar (t, u, e) tyvar = U.memberKey u tyvar
 
   (*fun instantiate (t, u, e) is = (t, u, E.instantiate e is)*)
   fun getAsstyset (t, u, e) = E.getAsstyset e
+
   fun getValstr (_, _, e) lvid = E.getValstr e lvid
+
   fun getTystr (_, _, e) ltycon = E.getTystr e ltycon
+
   fun getEnv (_, _, e) (pre, sid) = let
     fun aux (ENV e) (sid :: sidseq) =
       aux (Option.valOf (SE.find ((#1 e), sid))) sidseq
@@ -53,7 +60,7 @@ structure Context = struct
   fun closTysch c (vs, ty) = let
     val vartysetC = getVartyset c
     val openVartysetTs = TS.getOpenVartyset (vs, ty)
-    val vs' = VartySet.union 
+    val vs' = VartySet.union
       (VartySet.difference (openVartysetTs, vartysetC),
         vs) in
     (vs', ty) end

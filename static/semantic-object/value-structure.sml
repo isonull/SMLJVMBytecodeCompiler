@@ -11,4 +11,5 @@ structure ValueStructure = struct
 
   fun toString (ts, is) =
     (TS.toString ts) ^ "," ^ (IS.toString is)
+
 end

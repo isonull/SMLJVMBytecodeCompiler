@@ -1,10 +1,10 @@
 structure InstantiationEnvironment = struct
 
+  open IntBinaryMapAux
+
   structure TS = TypeScheme
   structure TY = Type
   structure IM = IntBinaryMapAux
-
-  open IntBinaryMapAux
 
   type insenv = TS.ins map
 

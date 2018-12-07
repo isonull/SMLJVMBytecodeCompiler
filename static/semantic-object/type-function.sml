@@ -20,13 +20,13 @@ structure TypeFunction = struct
   fun appTyname tsseq tn = let
     val tsseq' = TS.disjointList tsseq
     val vs = List.foldl (fn ((vs, _), set) =>
-      VS.union (set, vs)) VS.empty tsseq' 
-    val tyseq = List.map (fn (_, t) => t) tsseq' 
+      VS.union (set, vs)) VS.empty tsseq'
+    val tyseq = List.map (fn (_, t) => t) tsseq'
     val () = if TypeName.arity tn = length tsseq then ()
       else raise UnmatchedArity in
     (vs, TY.CONTY (tyseq, tn)) end
 
-  fun toString (vs, t) = 
+  fun toString (vs, t) =
     "A(" ^ (LA.toString vs VT.toString ",") ^ ")." ^ (TY.toString t)
 
 end

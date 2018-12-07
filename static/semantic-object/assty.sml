@@ -1,6 +1,7 @@
 structure Assty = struct
 
   structure SA = StringAux
+
   type assty = int
 
   fun toString n = let
@@ -15,4 +16,5 @@ structure AsstySet = struct
   open IntBinarySetAux
 
   fun getNewAssty set = getExclusion set 0 (fn x => x + 1)
+
 end

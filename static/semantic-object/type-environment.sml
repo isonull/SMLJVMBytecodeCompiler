@@ -1,12 +1,13 @@
 structure TypeEnvironment = struct
 
-  open StringBinaryMap
   structure TS = TypeStructure
   structure TF = TypeFunction
   structure ID = Identifier
   structure TYC = TypeConstructor
   structure SM = StringBinaryMap
   structure T = TypeNameSet
+
+  open StringBinaryMap
 
   type tyenv = TS.tystr map
 

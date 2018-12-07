@@ -1,5 +1,7 @@
 structure Type = struct
+
   open TypeName
+
   structure LM = LabBinaryMap
   structure IS = IntBinarySetAux
   structure LA = ListAux
@@ -75,7 +77,9 @@ structure Type = struct
     CONTY (List.map (fn ty => bnd ty s) tyseq, tyname)
 
   fun substitute ty subseq = List.foldl (fn (s, ty) => sub ty s) ty subseq
+
   fun instantiate ty insseq = List.foldl (fn (i, ty) => ins ty i) ty insseq
+
   fun bind ty bndseq = List.foldl (fn (b, ty) => bnd ty b) ty bndseq
 
   fun isBnd (VARTY _, _) = true
@@ -197,7 +201,7 @@ structure Type = struct
     val insseq = insseqFromSubseq tsubseq
     val bndseq = bndseqFromSubseq tsubseq
     val t = bind t1 bndseq
-  in (print ((toString t1) ^ " --- TY.1 \n" ^ 
+  in (print ((toString t1) ^ " --- TY.1 \n" ^
              (toString t2) ^ " --- TY.2 \n" ^
              (toString t) ^  " --- TY.3 \n"));(t, insseq) end
 

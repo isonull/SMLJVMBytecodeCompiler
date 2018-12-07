@@ -17,5 +17,5 @@ structure StringKey : ORD_KEY = struct
   val compare = String.compare
 end
 
-structure StringBinarySet = OrdSetAuxFn (BinarySetFn (StringKey))
 structure StringBinaryMap = OrdMapAuxFn (BinaryMapFn (StringKey))
+structure StringBinarySet = StringBinaryMap.KeySet
