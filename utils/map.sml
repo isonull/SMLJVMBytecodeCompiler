@@ -29,5 +29,6 @@ functor OrdMapAuxFn (Map : ORD_MAP) = struct
     handle NotFound => m) map set
 
   fun modify m1 m2 = unionWith (fn (a, b) => b) (m1, m2)
+
 end
 

@@ -12,7 +12,7 @@ structure InitialStaticBasis = struct
   structure U = TypeVariableEnvironment
 
   datatype ty = datatype TY.ty
-  datatype idstat = datatype IdStatus.idstat
+  datatype idstat = datatype IdentifierStatus.idstat
 
   val unitTycon = "unit"
   val boolTycon = "bool"

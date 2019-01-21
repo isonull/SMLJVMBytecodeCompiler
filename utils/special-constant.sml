@@ -1,11 +1,11 @@
 structure SpecialConstant = struct
 
   datatype scon =
-    INT_SCON of int |
+    INT_SCON  of int |
     REAL_SCON of real |
     WORD_SCON of word |
     CHAR_SCON of char |
-    STR_SCON of string
+    STR_SCON  of string
 
   exception SconLexError
 

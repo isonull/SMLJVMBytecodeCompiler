@@ -54,3 +54,13 @@ structure LongStructureIdentifier = struct
   structure SID = StructureIdentifier
   type lvid = SID.sid lid
 end
+
+structure IdentifierStatus = struct
+
+  datatype idstat = VAL | CON | EXC
+
+  fun toString VAL = "v"
+    | toString CON = "c"
+    | toString EXC = "e"
+
+end

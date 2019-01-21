@@ -21,6 +21,13 @@ structure ListAux = struct
     | enumerate n init succ =
     if n < 0 then raise Size else
       init :: (enumerate (n - 1) (succ init) succ)
+
+  fun findIndexFrom (x :: xs) y c = 
+    if x = y then SOME c else findIndexFrom xs y (c + 1)
+    | findIndexFrom [] _ _ = NONE
+
+  fun findIndex xs y = findIndexFrom xs y 0
+
 end
 
 structure ListPairAux = struct

@@ -1,0 +1,12 @@
+Group is
+
+./semantic-object/semantic-object.cm
+./java/java.cm
+./java-item.sml
+./dynamic-analysis.sml
+./SLang.sml
+../frontend/utils/utils.cm
+
+$/basis.cm
+$SMLNJ-LIB/Util/smlnj-lib.cm
+

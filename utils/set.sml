@@ -24,5 +24,17 @@ functor OrdSetAuxFn (Set : ORD_SET) = struct
   fun substitute set subs = List.foldl (fn ((d, r), set) => 
     Set.map (fn x => if Set.Key.compare (x, d) = EQUAL 
                      then r else x) set) set subs
+
+  fun getDisjointSub s1 s2 init succ = let
+    fun aux (v :: vs) es =
+      if member (es, v) then
+        let val ex = union (es, fromList vs)
+          val n = getExclusion ex init succ
+          val es' = add (es, n)
+        in (v, n) :: aux vs es' end
+      else aux vs (add (es, v))
+      | aux [] _ = [] in
+    aux (listItems s1) s2 end
+
 end
 

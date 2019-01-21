@@ -1,7 +1,7 @@
 structure ValueStructure = struct
 
   structure TS = TypeScheme
-  structure IS = IdStatus
+  structure IS = IdentifierStatus
 
   type valstr = TS.tysch * IS.idstat
 

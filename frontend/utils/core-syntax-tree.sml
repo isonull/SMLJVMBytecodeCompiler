@@ -16,12 +16,12 @@ structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
   datatype atexp =
     SCON_ATEXP of scon |
     LVID_ATEXP of lvid |
-    RCD_ATEXP of exprow |
-    LET_ATEXP of dec * exp |
-    EXP_ATEXP of exp
+    RCD_ATEXP  of exprow |
+    LET_ATEXP  of dec * exp |
+    EXP_ATEXP  of exp
 
   and exp =
-    AT_EXP of atexp |
+    AT_EXP   of atexp |
     APP_EXP  of exp * atexp |
     INF_EXP  of exp * vid * exp |
     TY_EXP   of exp * ty |

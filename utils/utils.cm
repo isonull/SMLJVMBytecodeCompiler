@@ -9,6 +9,7 @@ Group is
 ./special-constant.sml
 ./list.sml
 ./option.sml
+./word.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

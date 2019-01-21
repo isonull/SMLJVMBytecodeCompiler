@@ -20,7 +20,7 @@ structure StaticInference = struct
 
   exception StaticInferenceFail of string
 
-  datatype idstat    = datatype IdStatus.idstat
+  datatype idstat    = datatype IdentifierStatus.idstat
   datatype scon      = datatype CST.scon
   datatype atexp     = datatype CST.atexp
   datatype exp       = datatype CST.exp
@@ -56,7 +56,7 @@ structure StaticInference = struct
     val (tsExprow, iExprow) = infExprow c exprow
     val ts = TS.insertRowTysch tsExprow lab tsExp
     val insmap = I.unify iExp iExprow in
-    (ts, iExprow) end
+    (ts, insmap) end
     | infExprow c [] = (ISB.unitTysch, I.empty)
 
   and infExp     c (AT_EXP atexp) = infAtexp c atexp
@@ -291,7 +291,7 @@ structure StaticInference = struct
 
     | infExbd c [] = VE.empty
 
-  and infAtpat   c WILD_ATPAT = (VE.empty, ISB.unitTysch, I.empty)
+  and infAtpat   c WILD_ATPAT = (VE.empty, TS.wild, I.empty)
     | infAtpat   c (SCON_ATPAT scon) = (VE.empty, infScon scon, I.empty)
     | infAtpat   c (LVID_ATPAT (lvid as (pre, vid))) = let
     val () = print ((LongValueIdentifier.toString lvid) ^ " --- infAtpat \n")

@@ -2,3 +2,4 @@ Group is
 
 ./frontend/frontend.cm
 ./static/static.cm
+./dynamic/dynamic.cm

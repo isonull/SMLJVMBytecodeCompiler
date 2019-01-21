@@ -1,0 +1,20 @@
+Group is
+
+./array-type.sml
+./instruction.sml
+./word.sml
+./descriptor.sml
+./access-flag.sml
+./attribute.sml
+./reference-kind.sml
+./constant.sml
+./modified-utf8.sml
+./name.sml
+./method.sml
+./field.sml
+./class.sml
+../../utils/utils.cm
+./constant-pool.sml
+
+$/basis.cm
+$SMLNJ-LIB/Util/smlnj-lib.cm
