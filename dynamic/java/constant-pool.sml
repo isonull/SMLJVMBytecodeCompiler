@@ -15,7 +15,7 @@ structure ConstantPool = struct
     C_STR      of string |
     C_INT      of int |
     C_NAMETYPE of string * descriptor |
-    C_MHANDLE  of refkind * descriptor |
+    C_MHANDLE  of refkind * (string list * string * descriptor) |
     C_UTF      of utf
 
   val valOf = Option.valOf
@@ -55,8 +55,18 @@ structure ConstantPool = struct
     val idD = aux (C_UTF (UTF_DESC d)) in
     find1 (CST_NAMETYPE (valOf idN, valOf idD)) end
 
-    | aux (C_MHANDLE (rk, d)) = let
-    val idD = aux (C_UTF (UTF_DESC d)) in
+    | aux (C_MHANDLE (rk, r)) = let
+    val idD = aux (case rk of 
+      REF_GETF   => C_FREF (r)
+    | REF_GETS   => C_FREF (r)                 
+    | REF_PUTF   => C_FREF (r)                 
+    | REF_PUTS   => C_FREF (r)                 
+    | REF_INVVI  => C_MREF (r)                 
+    | REF_INVST  => C_MREF (r)                 
+    | REF_INVSP  => C_MREF (r)                 
+    | REF_NINVSP => C_MREF (r)                 
+    | REF_INVINT => C_IREF (r)
+    ) in
     find1 (CST_MHAND (rk, valOf idD)) end
 
     | aux (C_UTF     u) =
@@ -91,8 +101,25 @@ structure ConstantPool = struct
     val (newcp2, id2) = add newcp1 (C_UTF (UTF_DESC d)) in
     (newcp2 @ [CST_NAMETYPE (id1, id2)]) end
 
+    | (C_MHANDLE (rk, r)) => let
+    val (newcp1, id1) = add cp (case rk of
+      REF_GETF   => C_FREF (r)
+    | REF_GETS   => C_FREF (r)                 
+    | REF_PUTF   => C_FREF (r)                 
+    | REF_PUTS   => C_FREF (r)                 
+    | REF_INVVI  => C_MREF (r)                 
+    | REF_INVST  => C_MREF (r)                 
+    | REF_INVSP  => C_MREF (r)                 
+    | REF_NINVSP => C_MREF (r)                 
+    | REF_INVINT => C_IREF (r)) in 
+    (newcp1 @ [CST_MHAND (rk, id1)]) end
+
     | C_UTF utf => 
     (cp @ [CST_UTF8 utf])
+
+    | C_STR s => let
+    val (newcp1, id1) = add cp  (C_UTF (UTF_STRI s)) in
+    (newcp1 @ [CST_STR id1]) end
     ) in (newcp, length newcp) end end
 
   fun radd cpref c = let

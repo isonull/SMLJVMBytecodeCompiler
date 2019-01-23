@@ -34,6 +34,7 @@ structure Space = struct
     VS.unionWith #2 (ve, ve'))
 
   fun modifyValspa s vs = modify s (fromValspa vs)
+  fun modifyTyspa s ts = modify s (fromTyspa ts)
 
 
   fun getIdset (SPA (ss, ts, vs)) = VS.getIdset vs
