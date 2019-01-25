@@ -165,7 +165,7 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
   in
     if length es < 2
     then raise DerivedFormException
-    else RCD_ATEXP (aux es 0)
+    else RCD_ATEXP (aux es 1)
   end
     | tupAtexpToRcdAtexp _ = raise DerivedFormException
 

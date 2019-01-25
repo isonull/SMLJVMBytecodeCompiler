@@ -31,29 +31,7 @@ structure JavaItem = struct
   val methodDesc = M_DESC ([(L o NBIN) objectName], (L o NBIN) objectName)
   val ivalofDesc = M_DESC ([I], (L o NBIN) iCname)
 
-  val cp = [
-   (*CST_UTF8 (UTF_NAME (objectName)),*)
-   (*CST_UTF8 (UTF_NAME (integerName)),*)
-   (*CST_UTF8 (UTF_NAME (floatName)),*)
-   (*CST_UTF8 (UTF_NAME (NBIN ["Top"])),*)
-   (*CST_UTF8 (UTF_NAME (NBIN ["Environment"])),*)
-
-   (*CST_UTF8 (UTF_NAME (NUNQ "env")),*)
-   (*CST_UTF8 (UTF_NAME (NUNQ "<init>")),*)
-   (*CST_UTF8 (UTF_NAME (NUNQ "<clint>")),*)
-   (*CST_UTF8 (UTF_NAME (NUNQ "valueOf")),*)
-   (*CST_UTF8 (UTF_DESC (V_DESC (A (L (objectName))))),*)
-   (*CST_UTF8 (UTF_DESC (M_DESC ([I], L objectName))),*)
-   (*CST_UTF8 (UTF_DESC (M_DESC ([], V))),*)
-
-   (*CST_NAMETYPE (9, 11), (*valueOf:(I)Ljava/lang/Integer*)*)
-   (*CST_NAMETYPE (6, 10), (*env:[Ljava/lang/Object*)*)
-   (*CST_NAMETYPE (7, 12)*)
-
-   (*C_MREF (["Ljava","lang","Integer"], "valueOf",*)
-           (*M_DESC ([I], L (NBIN objectName)))*)
-   ]
-
+  val conGetDesc = M_DESC ([(L o NBIN) iCname], (L o NBIN) objectName)
 
   fun newClass name = let
     val cpref = ref ([] : CST.constant list)

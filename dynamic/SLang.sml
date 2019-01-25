@@ -45,6 +45,8 @@ structure Slang = struct
     DUPL |
     REMO |
 
+    MATCH of int |
+
     IADD |
     ISUB |
     IMUL |
@@ -87,6 +89,11 @@ structure Slang = struct
     val cidConPut = CP.radd cpref (C_MREF (JI.conCname, "<init>",
     JI.conPutDesc))
 
+    val cidConGet = CP.radd cpref (C_MREF (JI.conCname, "get",
+    JI.conGetDesc))
+    val cidRcdGet = CP.radd cpref (C_MREF (JI.mapCname, "get",
+    JI.methodDesc))
+
     val preclinitInsts = [
       SIPUSH 10000,
       ANEWARRAY cidObj,
@@ -113,11 +120,17 @@ structure Slang = struct
       | genInst (NEWRCD) =
       [NEW cidMapClass, DUP, INVOKESPECIAL cidMapInit]
       | genInst (PUTRCD) = [INVOKEVIRTUAL cidMapPut]
+      | genInst (GETRCD s) = 
+      [CHECKCAST cidMapClass, LDC (CP.radd cpref (C_STR s)), INVOKEVIRTUAL
+      cidRcdGet]
       | genInst NEWCON = [NEW cidConClass]
       | genInst PUTCON = [INVOKESPECIAL cidConPut]
-      | genInst (DUPL) = [DUP]
-      | genInst (REMO) = [POP]
-      | genInst (RETURN) = [ARETURN]
+      | genInst (GETCON i) = [CHECKCAST cidConClass, SIPUSH i, INVOKESTATIC
+      cidIvalof, INVOKEVIRTUAL cidConGet]
+      | genInst DUPL = [DUP]
+      | genInst REMO = [POP]
+      | genInst RETURN = [ARETURN]
+      | genInst (MATCH i) = [POP]
 
     fun genInsts is = (List.concat o (List.map genInst)) is
 

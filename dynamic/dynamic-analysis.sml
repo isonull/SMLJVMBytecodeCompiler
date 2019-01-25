@@ -58,9 +58,7 @@ structure DynamicInference = struct
     val maxLabi = ref (~1)
     fun aux (lab, exp) = let
       val expCode = infExp spa exp
-      val iCode   = [CONST (S (case lab of
-        INT_LAB i => Int.toString i
-      | STR_LAB s => s))] in
+      val iCode   = [CONST (S (Lab.toString lab))] in
       [DUPL] @ iCode @ expCode @ [PUTRCD, REMO] end in
     (List.concat o (List.map aux)) exprow end
 
@@ -169,14 +167,45 @@ structure DynamicInference = struct
       (nvs, ncode) end) (VS.empty, []) conbd in
     (vs, code) end
 
-
   and infAtpat spa (LVID_ATPAT ([], vid)) = let
-    val id = getTop ()
-    val vs = VS.fromListPair [(vid, (id, IS.VAL))] in
-    (vs, [PUT id]) end
-    | infAtpat _ _ = raise Size
+    (* TODO: check constructor and exception *)
+    val (eid, ids) = valOf (S.getValstr spa ([], vid))
+      handle Option => (~1, VAL) in
+    case ids of 
+        VAL => let
+        val id = getTop ()
+        val vs = VS.fromListPair [(vid, (id, IS.VAL))] in
+        (vs, [PUT id]) end
+
+      | CON => (VS.empty, [MATCH eid]) end
+
+    | infAtpat spa (SCON_ATPAT scon) = (VS.empty,
+    case scon of
+      INT_SCON i => [MATCH i]
+    | _          => raise Size)
+
+    | infAtpat spa (RCD_ATPAT (patrow, _)) = let
+
+    fun aux (lab, pat) = let
+      val labCode = [DUPL, GETRCD (Lab.toString lab)]
+      val (patVs, patCode) = infPat spa pat in
+      (patVs, labCode @ patCode) end
+
+    val (vs, code) = List.foldl (fn (ele, (vs, code)) => let
+      val (v, c) = aux ele
+      val nvs = VS.modify vs v
+      val ncode = code @ c in
+      (nvs, ncode) end) (VS.empty, []) patrow
+    in (vs, code @ [REMO]) end
+
+    | infAtpat spa (PAT_ATPAT pat) = infPat spa pat
 
   and infPat spa (AT_PAT atpat) = infAtpat spa atpat
+    | infPat spa (CON_PAT (lvid, atpat)) = let
+    val (vs, code) = infAtpat spa atpat
+    val (eid, CON) = valOf (S.getValstr spa lvid) in
+    (vs, [GETCON eid] @ code) end
+  
     | infPat spa _ = raise Size
 
   and infStrdec _ = raise Size
@@ -187,6 +216,7 @@ structure DynamicInference = struct
     (! flistRef, initCode, spaProg) end
 
   fun inference prog = (
+    fname := "a";
     top := 0;
     flistRef := [];
     infProg S.empty prog)
