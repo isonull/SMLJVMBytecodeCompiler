@@ -467,4 +467,5 @@ structure Instruction = struct
     | toWords IMPDEP1    = [0wxfe]
     | toWords IMPDEP2    = [0wxff]
 
+  val size = length o toWords
 end

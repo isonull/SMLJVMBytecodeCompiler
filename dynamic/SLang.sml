@@ -34,10 +34,10 @@ structure Slang = struct
     PUTRCD |
 
     NEWCON |
-    PUTCON |
+    PUTCON of bool |
 
-    GETRCD of string |
-    GETCON of int |
+    GETRCD of string * int * int|
+    GETCON of int * bool * int |
 
     CALL |
     RETURN |
@@ -58,7 +58,8 @@ structure Slang = struct
     R of real |
     S of string
 
-  type method = (string * instruction list)
+  type block  = instruction list
+  type method = (string * (block list))
 
   val cidObj = 4
 
@@ -78,6 +79,9 @@ structure Slang = struct
     val cidMhClass = CP.radd cpref (C_CLASS JI.methodHandleName)
     val cidIvalof  = CP.radd cpref (C_MREF (JI.iCname, "valueOf",
     JI.ivalofDesc))
+    val cidIClass  = CP.radd cpref (C_CLASS JI.iCname)
+    val cidIval    = CP.radd cpref (C_MREF (JI.iCname, "intValue",
+    JI.ivalDesc))
     val cidInvoke  = CP.radd cpref (C_MREF (JI.methodHandleName, "invoke",
     JI.methodDesc))
     val cidMapClass= CP.radd cpref (C_CLASS (JI.mapCname))
@@ -85,10 +89,15 @@ structure Slang = struct
     JI.initDesc))
     val cidMapPut = CP.radd cpref (C_MREF (JI.mapCname, "put",
     JI.putDesc))
+
     val cidConClass = CP.radd cpref (C_CLASS (JI.conCname))
     val cidConPut = CP.radd cpref (C_MREF (JI.conCname, "<init>",
     JI.conPutDesc))
-
+    val cidConPut0 = CP.radd cpref (C_MREF (JI.conCname, "<init>",
+    JI.conPut0Desc))
+    val cidTagField = CP.radd cpref (C_FREF (JI.conCname, "tag", JI.tagDesc))
+    val cidValField = CP.radd cpref (C_FREF (JI.conCname, "val",
+    JI.objDesc))
     val cidConGet = CP.radd cpref (C_MREF (JI.conCname, "get",
     JI.conGetDesc))
     val cidRcdGet = CP.radd cpref (C_MREF (JI.mapCname, "get",
@@ -106,38 +115,59 @@ structure Slang = struct
     val () = F.radd fpref ("env", JI.envDesc) cpref
     val () = F.radd fpref ("fenv", JI.fenvDesc) cpref
 
-    fun genInst (CONST c) = (case c of 
-        I i =>
-      [SIPUSH i, INVOKESTATIC cidIvalof]
-      | S s => [LDC (CP.radd cpref (C_STR s))])
-      | genInst (PUT i) = [GETSTATIC cidEnv, SWAP, SIPUSH i, SWAP, AASTORE]
-      | genInst (GET i) = [GETSTATIC cidEnv, SIPUSH i, AALOAD]
-      | genInst (GETF i) = [GETSTATIC cidFenv, SIPUSH i, AALOAD]
-      | genInst (STORE i) = [ASTORE i]
-      | genInst (LOAD i) = [ALOAD i]
-      | genInst (CALL) = [SWAP, CHECKCAST cidMhClass, SWAP, INVOKEVIRTUAL
-      cidInvoke]
-      | genInst (NEWRCD) =
-      [NEW cidMapClass, DUP, INVOKESPECIAL cidMapInit]
-      | genInst (PUTRCD) = [INVOKEVIRTUAL cidMapPut]
-      | genInst (GETRCD s) = 
-      [CHECKCAST cidMapClass, LDC (CP.radd cpref (C_STR s)), INVOKEVIRTUAL
-      cidRcdGet]
-      | genInst NEWCON = [NEW cidConClass]
-      | genInst PUTCON = [INVOKESPECIAL cidConPut]
-      | genInst (GETCON i) = [CHECKCAST cidConClass, SIPUSH i, INVOKESTATIC
-      cidIvalof, INVOKEVIRTUAL cidConGet]
-      | genInst DUPL = [DUP]
-      | genInst REMO = [POP]
-      | genInst RETURN = [ARETURN]
-      | genInst (MATCH i) = [POP]
+    fun genBlock is = let
+      val relBr = ref 0
+    
+      fun genInst (CONST c) = (case c of 
+          I i =>
+        [SIPUSH i, INVOKESTATIC cidIvalof]
+        | S s => [LDC (CP.radd cpref (C_STR s))])
+        | genInst (PUT i) = [GETSTATIC cidEnv, SWAP, SIPUSH i, SWAP, AASTORE]
+        | genInst (GET i) = [GETSTATIC cidEnv, SIPUSH i, AALOAD]
+        | genInst (GETF i) = [GETSTATIC cidFenv, SIPUSH i, AALOAD]
+        | genInst (STORE i) = [ASTORE i]
+        | genInst (LOAD i) = [ALOAD i]
+        | genInst (CALL) = [SWAP, CHECKCAST cidMhClass, SWAP, INVOKEVIRTUAL
+        cidInvoke]
+        | genInst (NEWRCD) =
+        [NEW cidMapClass, DUP, INVOKESPECIAL cidMapInit]
+        | genInst (PUTRCD) = [INVOKEVIRTUAL cidMapPut]
+        | genInst (GETRCD (s, l1, l2)) =
+        [CHECKCAST cidMapClass, LDC (CP.radd cpref (C_STR s)), INVOKEVIRTUAL
+        cidRcdGet, SWAP, ASTORE l1, DUP, ASTORE l2, IFNULL ((! relBr) + 3),
+        ALOAD l1, ALOAD l2]
+        | genInst NEWCON = [NEW cidConClass]
+        | genInst (PUTCON hasval) = if hasval then
+          [INVOKESPECIAL cidConPut] else
+          [INVOKESPECIAL cidConPut0]
+        | genInst (GETCON (i, hasval, l)) = [
+        CHECKCAST cidConClass, DUP, ASTORE l,
+        GETFIELD cidTagField, INVOKEVIRTUAL cidIval, SIPUSH i] @
+        (if hasval then 
+          [IF_ICMPNE ((! relBr) + 8), ALOAD l, GETFIELD cidValField]
+         else
+          [IF_ICMPNE ((! relBr) + 3)])
 
-    fun genInsts is = (List.concat o (List.map genInst)) is
+        | genInst DUPL = [DUP]
+        | genInst REMO = [POP]
+        | genInst RETURN = [ARETURN]
+        | genInst (MATCH i) = 
+        [CHECKCAST cidIClass,INVOKEVIRTUAL cidIval, SIPUSH i,
+         IF_ICMPNE ((! relBr) + 3)] in
+
+      List.foldr (fn (is, out) => let
+        val inst = genInst is 
+        val size = List.foldl (fn (i, s) => (I.size i) + s) 0 inst in
+        relBr := (! relBr) + size;
+        inst @ out end
+      ) [] is end
+
+    fun genMethod is = (List.concat o (List.map genBlock)) is
 
     fun genAttrCode cb = ATTR_CODE (cidCodetag, cb, [], [])
 
     val fclinitInsts = List.foldl (fn ((name, insts), clinit) => ( let
-      val m = (name, JI.methodDesc, (genAttrCode o genInsts) insts)
+      val m = (name, JI.methodDesc, (genAttrCode o genMethod) insts)
       val cidMh = CP.radd cpref (C_MHANDLE (REF_INVST,
         (topCname, name, JI.methodDesc)))
       val count = (length clinit) div 4 in
@@ -146,7 +176,7 @@ structure Slang = struct
       end)) [] ms
 
     val clinitInsts = preclinitInsts @ fclinitInsts @ 
-      (genInsts init) @ [I.RETURN]
+      (genBlock init) @ [I.RETURN]
 
     val clinitCodeAttr = genAttrCode clinitInsts
 

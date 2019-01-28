@@ -28,8 +28,9 @@ structure DynamicInference = struct
   fun update r f = r := f (! r)
 
   val top = ref 0
+  val ltop = ref 1
   val fname = ref "a"
-  val flistRef = ref ([] : ((string * (Slang.instruction list)) list))
+  val flistRef = ref ([] : (Slang.method list))
 
   fun getTop () = let
     val r = ! top in 
@@ -38,6 +39,12 @@ structure DynamicInference = struct
   fun getFname () = let
     val r = ! fname in
     (fname := StringAux.succ (! fname); r) end
+
+  fun getLtop () = let
+    val r = ! ltop in 
+    (ltop := !ltop + 1; r) end
+
+  fun relLtop () = ltop := !ltop - 1
 
   fun infScon (INT_SCON  i) = [CONST (I i)] 
     | infScon (REAL_SCON r) = [CONST (R r)]
@@ -66,7 +73,8 @@ structure DynamicInference = struct
     | infExp spa (FN_EXP match) = let
     val fname = getFname ()
     val codeMatch = infMatch spa match 
-    val codeFn = (LOAD 0) :: codeMatch @ [RETURN] in
+    val codeFn = map (fn codeMatch =>
+      (LOAD 0) :: codeMatch @ [RETURN]) codeMatch in
     flistRef := (! flistRef) @ [(fname, codeFn)];
     [GETF ((length (! flistRef)) - 1)] end
     | infExp spa (APP_EXP (exp, atexp)) = let
@@ -80,8 +88,7 @@ structure DynamicInference = struct
     val codeExp = infExp spaMod exp in
     codePat @ codeExp end
 
-  and infMatch spa [mrule] = infMrule spa mrule
-    | infMatch spa _ = raise Size
+  and infMatch spa rs = List.map (infMrule spa) rs
 
   and infDec spa (VAL_DEC (_, valbd)) = let
     val (vs, code) = infValbind spa valbd
@@ -148,14 +155,14 @@ structure DynamicInference = struct
     fun faux vid = let
       val id = getTop ()
       val vs = VS.fromListPair [(vid, (id, IS.CON))]
-      val code = [NEWCON, DUPL, CONST (I id), LOAD 0, PUTCON, RETURN] in
-      flistRef := (! flistRef) @ [(vid ^ (Int.toString id), code)];
+      val code = [NEWCON, DUPL, CONST (I id), LOAD 0, PUTCON true, RETURN] in
+      flistRef := (! flistRef) @ [(vid ^ (Int.toString id), [code])];
       (vs, [GETF ((length (! flistRef)) - 1), PUT id]) end
 
     fun vaux vid = let
       val id = getTop ()
       val vs = VS.fromListPair [(vid, (id, IS.CON))] in
-      (vs, [CONST (I id), PUT id]) end
+      (vs, [NEWCON, DUPL, CONST (I id), PUTCON false, PUT id]) end
 
     fun aux (vid, SOME _) = faux vid
       | aux (vid, NONE)   = vaux vid
@@ -177,7 +184,7 @@ structure DynamicInference = struct
         val vs = VS.fromListPair [(vid, (id, IS.VAL))] in
         (vs, [PUT id]) end
 
-      | CON => (VS.empty, [MATCH eid]) end
+      | CON => (VS.empty, [GETCON (eid, false, 0)]) end
 
     | infAtpat spa (SCON_ATPAT scon) = (VS.empty,
     case scon of
@@ -186,8 +193,9 @@ structure DynamicInference = struct
 
     | infAtpat spa (RCD_ATPAT (patrow, _)) = let
 
+    val (ltop1, ltop2) = (getLtop (), getLtop ())
     fun aux (lab, pat) = let
-      val labCode = [DUPL, GETRCD (Lab.toString lab)]
+      val labCode = [DUPL, GETRCD (Lab.toString lab, ltop1, ltop2)]
       val (patVs, patCode) = infPat spa pat in
       (patVs, labCode @ patCode) end
 
@@ -196,15 +204,16 @@ structure DynamicInference = struct
       val nvs = VS.modify vs v
       val ncode = code @ c in
       (nvs, ncode) end) (VS.empty, []) patrow
-    in (vs, code @ [REMO]) end
+    in relLtop (); relLtop (); (vs, code @ [REMO]) end
 
     | infAtpat spa (PAT_ATPAT pat) = infPat spa pat
+    | infAtpat spa (WILD_ATPAT) = (VS.empty, [REMO])
 
   and infPat spa (AT_PAT atpat) = infAtpat spa atpat
     | infPat spa (CON_PAT (lvid, atpat)) = let
     val (vs, code) = infAtpat spa atpat
     val (eid, CON) = valOf (S.getValstr spa lvid) in
-    (vs, [GETCON eid] @ code) end
+    (vs, [GETCON (eid, true, (! ltop))] @ code) end
   
     | infPat spa _ = raise Size
 

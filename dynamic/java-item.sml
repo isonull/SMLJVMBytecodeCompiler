@@ -21,15 +21,19 @@ structure JavaItem = struct
   val mapCname = ["java", "util", "HashMap"]
   val methodHandleName = ["java","lang","invoke","MethodHandle"]
 
+  val objDesc = V_DESC ((L o NBIN) objectName)
   val envDesc = V_DESC (A (L (NBIN objectName)))
   val initDesc = M_DESC ([], V)
   val fenvDesc = V_DESC(A (L (NBIN methodHandleName)))
   val putDesc = M_DESC ([(L o NBIN) objectName, (L o NBIN) objectName], 
   (L o NBIN) objectName)
   val conPutDesc = M_DESC ([(L o NBIN) iCname, (L o NBIN) objectName], V)
+  val conPut0Desc = M_DESC ([(L o NBIN) iCname], V)
 
+  val tagDesc      = V_DESC ((L o NBIN) iCname)
   val methodDesc = M_DESC ([(L o NBIN) objectName], (L o NBIN) objectName)
   val ivalofDesc = M_DESC ([I], (L o NBIN) iCname)
+  val ivalDesc   = M_DESC ([], I)
 
   val conGetDesc = M_DESC ([(L o NBIN) iCname], (L o NBIN) objectName)
 
