@@ -6,6 +6,7 @@ Group is
 ./dynamic-analysis.sml
 ./SLang.sml
 ../frontend/utils/utils.cm
+./initial-space.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

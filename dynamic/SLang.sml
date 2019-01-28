@@ -15,6 +15,7 @@ structure Slang = struct
   datatype constant = datatype CP.constant
   datatype attribute = datatype Attribute.attribute
   datatype refkind = datatype RK.refkind
+  datatype value = datatype Value.value
 
   datatype instruction =
     CONST of const |
@@ -23,8 +24,8 @@ structure Slang = struct
     (*LOAD of int |*)
     (*STORE of int |*)
 
-    GET of int |
-    PUT of int |
+    GET of value |
+    PUT of value |
     GETF of int |
 
     STORE of int |
@@ -36,7 +37,7 @@ structure Slang = struct
     NEWCON |
     PUTCON of bool |
 
-    GETRCD of string * int * int|
+    GETRCD of string * int |
     GETCON of int * bool * int |
 
     CALL |
@@ -73,8 +74,8 @@ structure Slang = struct
     val mpref = #7 class
     val apref = #8 class
 
-    val cidEnv     = CP.radd cpref (C_FREF (topCname, "env", JI.envDesc))
-    val cidFenv    = CP.radd cpref (C_FREF (topCname, "fenv", JI.fenvDesc))
+    val cidEnvFref     = CP.radd cpref (C_FREF (topCname, "env", JI.envDesc))
+    val cidFenvFref    = CP.radd cpref (C_FREF (topCname, "fenv", JI.fenvDesc))
     val cidCodetag = CP.radd cpref (C_UTF (UTF_STRI "Code"))
     val cidMhClass = CP.radd cpref (C_CLASS JI.methodHandleName)
     val cidIvalof  = CP.radd cpref (C_MREF (JI.iCname, "valueOf",
@@ -106,10 +107,10 @@ structure Slang = struct
     val preclinitInsts = [
       SIPUSH 10000,
       ANEWARRAY cidObj,
-      PUTSTATIC cidEnv,
+      PUTSTATIC cidEnvFref,
       SIPUSH 10000,
       ANEWARRAY cidMhClass,
-      PUTSTATIC cidFenv
+      PUTSTATIC cidFenvFref
     ]
 
     val () = F.radd fpref ("env", JI.envDesc) cpref
@@ -122,9 +123,15 @@ structure Slang = struct
           I i =>
         [SIPUSH i, INVOKESTATIC cidIvalof]
         | S s => [LDC (CP.radd cpref (C_STR s))])
-        | genInst (PUT i) = [GETSTATIC cidEnv, SWAP, SIPUSH i, SWAP, AASTORE]
-        | genInst (GET i) = [GETSTATIC cidEnv, SIPUSH i, AALOAD]
-        | genInst (GETF i) = [GETSTATIC cidFenv, SIPUSH i, AALOAD]
+
+        | genInst (PUT loc) = (case loc of
+          GLB i => [GETSTATIC cidEnvFref, SWAP, SIPUSH i, SWAP, AASTORE]
+        | LOC i => [ASTORE i])
+
+        | genInst (GET loc) = (case loc of 
+          GLB i => [GETSTATIC cidEnvFref, SIPUSH i, AALOAD]
+        | LOC i => [ALOAD i])
+        | genInst (GETF i) = [GETSTATIC cidFenvFref, SIPUSH i, AALOAD]
         | genInst (STORE i) = [ASTORE i]
         | genInst (LOAD i) = [ALOAD i]
         | genInst (CALL) = [SWAP, CHECKCAST cidMhClass, SWAP, INVOKEVIRTUAL
@@ -132,10 +139,9 @@ structure Slang = struct
         | genInst (NEWRCD) =
         [NEW cidMapClass, DUP, INVOKESPECIAL cidMapInit]
         | genInst (PUTRCD) = [INVOKEVIRTUAL cidMapPut]
-        | genInst (GETRCD (s, l1, l2)) =
+        | genInst (GETRCD (s, l)) =
         [CHECKCAST cidMapClass, LDC (CP.radd cpref (C_STR s)), INVOKEVIRTUAL
-        cidRcdGet, SWAP, ASTORE l1, DUP, ASTORE l2, IFNULL ((! relBr) + 3),
-        ALOAD l1, ALOAD l2]
+        cidRcdGet, DUP, ASTORE l, IFNULL ((! relBr) + 5), ALOAD l]
         | genInst NEWCON = [NEW cidConClass]
         | genInst (PUTCON hasval) = if hasval then
           [INVOKESPECIAL cidConPut] else
@@ -172,7 +178,7 @@ structure Slang = struct
         (topCname, name, JI.methodDesc)))
       val count = (length clinit) div 4 in
       M.radd mpref m cpref;
-      clinit @ [GETSTATIC cidFenv, SIPUSH count, LDC cidMh, AASTORE]
+      clinit @ [GETSTATIC cidFenvFref, SIPUSH count, LDC cidMh, AASTORE]
       end)) [] ms
 
     val clinitInsts = preclinitInsts @ fclinitInsts @ 

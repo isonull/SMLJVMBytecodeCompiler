@@ -13,11 +13,20 @@ structure Value = struct
 
   type location = int
 
-  datatype space =
+  datatype value =
+    LOC of int |
+    GLB of int |
+    FLD of string |
+    FCN of string |
+    BAS of string |
+    STK of int
+  
+  and space =
     SPA of strspa * tyspa * valspa
+
   withtype record = location LM.map
   and strspa = space SM.map
-  and valspa = (location * IDS.idstat) SM.map
+  and valspa = (value * IDS.idstat) SM.map
   and tyspa  = valspa SM.map
 
 end

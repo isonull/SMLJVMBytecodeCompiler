@@ -21,48 +21,52 @@ structure DynamicInference = struct
   datatype pat       = datatype CST.pat
   datatype ty        = datatype CST.ty
   datatype lab       = datatype Lab.lab
+  datatype value     = datatype Value.value
 
   datatype instruction = datatype Slang.instruction
   datatype const = datatype Slang.const
 
   fun update r f = r := f (! r)
 
-  val top = ref 0
-  val ltop = ref 1
-  val fname = ref "a"
+  datatype refid = RGLB | RLOC | RFCN
+
+  val gtop = ref (~1)
+  val ltop = ref 0
+  val ftop = ref (~1)
   val flistRef = ref ([] : (Slang.method list))
 
-  fun getTop () = let
-    val r = ! top in 
-    (top := !top + 1; r) end
+  fun inc r = r := !r + 1
+  fun dec r = r := !r - 1
+  fun new con = case con of
+    RGLB => (inc gtop; GLB (! gtop))
+  | RLOC => (inc ltop; LOC (! ltop))
+  | RFCN => (inc ftop; FCN ("m" ^ (Int.toString (! ftop))))
 
-  fun getFname () = let
-    val r = ! fname in
-    (fname := StringAux.succ (! fname); r) end
-
-  fun getLtop () = let
-    val r = ! ltop in 
-    (ltop := !ltop + 1; r) end
-
-  fun relLtop () = ltop := !ltop - 1
+  fun rel con = case con of
+    RGLB => dec gtop
+  | RLOC => dec ltop
+  | RFCN => dec ftop
 
   fun infScon (INT_SCON  i) = [CONST (I i)] 
     | infScon (REAL_SCON r) = [CONST (R r)]
     | infScon _ = raise Size
 
+  fun glb2id (GLB id) = id
+  fun fcn2id (FCN id) = id
+  fun loc2id (LOC id) = id
+
   and infAtexp spa (SCON_ATEXP scon) = infScon scon
     | infAtexp spa (LVID_ATEXP lvid) = let
     val valstr = Option.valOf (S.getValstr spa lvid)
     val code = case valstr of
-      (id, VAL) => [GET id]
-    | (id, CON) => [GET id]
-    | (id, EXC) => raise Size in code end
+      (loc, VAL) => [GET loc]
+    | (loc, CON) => [GET loc]
+    | (loc, EXC) => raise Size in code end
     | infAtexp spa (EXP_ATEXP exp) = infExp spa exp
     | infAtexp spa (RCD_ATEXP exprow) =
     NEWRCD :: (infExprow spa exprow)
 
   and infExprow spa exprow = let
-    val maxLabi = ref (~1)
     fun aux (lab, exp) = let
       val expCode = infExp spa exp
       val iCode   = [CONST (S (Lab.toString lab))] in
@@ -71,12 +75,13 @@ structure DynamicInference = struct
 
   and infExp spa (AT_EXP atexp) = infAtexp spa atexp
     | infExp spa (FN_EXP match) = let
-    val fname = getFname ()
+    val fname = new RFCN
     val codeMatch = infMatch spa match 
     val codeFn = map (fn codeMatch =>
       (LOAD 0) :: codeMatch @ [RETURN]) codeMatch in
-    flistRef := (! flistRef) @ [(fname, codeFn)];
+    flistRef := (! flistRef) @ [(fcn2id fname, codeFn)];
     [GETF ((length (! flistRef)) - 1)] end
+
     | infExp spa (APP_EXP (exp, atexp)) = let
     val expCode = infExp spa exp
     val atexpCode = infAtexp spa atexp in
@@ -153,16 +158,17 @@ structure DynamicInference = struct
 
   and infConbind conbd = let
     fun faux vid = let
-      val id = getTop ()
-      val vs = VS.fromListPair [(vid, (id, IS.CON))]
-      val code = [NEWCON, DUPL, CONST (I id), LOAD 0, PUTCON true, RETURN] in
-      flistRef := (! flistRef) @ [(vid ^ (Int.toString id), [code])];
-      (vs, [GETF ((length (! flistRef)) - 1), PUT id]) end
+      val gid = new RGLB
+      val vs = VS.fromListPair [(vid, (gid, IS.CON))]
+      val code = [NEWCON, DUPL, CONST (I (glb2id gid)),
+        LOAD 0, PUTCON true, RETURN] in
+      flistRef := (! flistRef) @ [(vid ^ (Int.toString (glb2id gid)), [code])];
+      (vs, [GETF ((length (! flistRef)) - 1), PUT gid]) end
 
     fun vaux vid = let
-      val id = getTop ()
-      val vs = VS.fromListPair [(vid, (id, IS.CON))] in
-      (vs, [NEWCON, DUPL, CONST (I id), PUTCON false, PUT id]) end
+      val gid = new RGLB
+      val vs = VS.fromListPair [(vid, (gid, IS.CON))] in
+      (vs, [NEWCON, DUPL, CONST (I (glb2id gid)), PUTCON false, PUT gid]) end
 
     fun aux (vid, SOME _) = faux vid
       | aux (vid, NONE)   = vaux vid
@@ -176,15 +182,15 @@ structure DynamicInference = struct
 
   and infAtpat spa (LVID_ATPAT ([], vid)) = let
     (* TODO: check constructor and exception *)
-    val (eid, ids) = valOf (S.getValstr spa ([], vid))
-      handle Option => (~1, VAL) in
+    val (loc, ids) = valOf (S.getValstr spa ([], vid))
+      handle Option => (GLB (~ 1), VAL) in
     case ids of 
         VAL => let
-        val id = getTop ()
-        val vs = VS.fromListPair [(vid, (id, IS.VAL))] in
-        (vs, [PUT id]) end
+        val gid = new RGLB
+        val vs = VS.fromListPair [(vid, (gid, IS.VAL))] in
+        (vs, [PUT gid]) end
 
-      | CON => (VS.empty, [GETCON (eid, false, 0)]) end
+      | CON => (VS.empty, [GETCON ((fn (GLB i) => i) loc, false, 0)]) end
 
     | infAtpat spa (SCON_ATPAT scon) = (VS.empty,
     case scon of
@@ -193,9 +199,10 @@ structure DynamicInference = struct
 
     | infAtpat spa (RCD_ATPAT (patrow, _)) = let
 
-    val (ltop1, ltop2) = (getLtop (), getLtop ())
+    val (loc1, loc2) = (new RLOC, new RLOC)
     fun aux (lab, pat) = let
-      val labCode = [DUPL, GETRCD (Lab.toString lab, ltop1, ltop2)]
+      val labCode = [GET loc1, 
+        GETRCD (Lab.toString lab, loc2id loc2)]
       val (patVs, patCode) = infPat spa pat in
       (patVs, labCode @ patCode) end
 
@@ -204,7 +211,7 @@ structure DynamicInference = struct
       val nvs = VS.modify vs v
       val ncode = code @ c in
       (nvs, ncode) end) (VS.empty, []) patrow
-    in relLtop (); relLtop (); (vs, code @ [REMO]) end
+    in rel RLOC; rel RLOC; (vs, [PUT loc1] @ code) end
 
     | infAtpat spa (PAT_ATPAT pat) = infPat spa pat
     | infAtpat spa (WILD_ATPAT) = (VS.empty, [REMO])
@@ -213,7 +220,7 @@ structure DynamicInference = struct
     | infPat spa (CON_PAT (lvid, atpat)) = let
     val (vs, code) = infAtpat spa atpat
     val (eid, CON) = valOf (S.getValstr spa lvid) in
-    (vs, [GETCON (eid, true, (! ltop))] @ code) end
+    (vs, [GETCON (glb2id eid, true, (! ltop))] @ code) end
   
     | infPat spa _ = raise Size
 
@@ -225,9 +232,10 @@ structure DynamicInference = struct
     (! flistRef, initCode, spaProg) end
 
   fun inference prog = (
-    fname := "a";
-    top := 0;
+    gtop := 0;
+    ltop := 0;
+    ftop := 0;
     flistRef := [];
-    infProg S.empty prog)
+    infProg InitialSpace.space prog)
 
 end
