@@ -39,7 +39,6 @@ id = ({letter}({letter}|{digit}|_|')*)|({symbol}+);
 iddot = {id}\.;
 var = '({letter}|{digit}|'|_)*;
 lid = {id}(\.{id})*;
-lab = {id}|{num};
 
 %%
 
