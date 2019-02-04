@@ -2,11 +2,10 @@ Group is
 
 ./semantic-object/semantic-object.cm
 ./java/java.cm
-./java-item.sml
-./dynamic-analysis.sml
-./SLang.sml
+./intermediate/intermediate.cm
+./code-generation.sml
 ../frontend/utils/utils.cm
-./initial-space.sml
+./intermediate-representation.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

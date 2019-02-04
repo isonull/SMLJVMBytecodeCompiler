@@ -1,5 +1,7 @@
 structure BasicValue = struct
 
-  type basval = ValueIdentifier.vid
+  datatype basop = ADD | SUB | MUL | DIV | NEG
+  datatype basty = I
+  type basval = basty * basop
 
 end

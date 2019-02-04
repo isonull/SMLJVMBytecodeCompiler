@@ -11,22 +11,28 @@ structure Value = struct
   structure EN = ExceptionName
   structure SS = StringBinarySet
 
-  type location = int
+  type basval = BasicValue.basval
+  datatype scon = datatype SpecialConstant.scon
+
+  type cid = int
+  type loc = int
+  type closid = int
 
   datatype value =
-    LOC of int |
-    GLB of int |
-    FLD of string |
-    FCN of string |
-    BAS of string |
-    STK of int
-  
+    VAL of closid * loc |
+    CON of (closid * loc) * int |
+    EXC of (closid * loc) * int
+
   and space =
     SPA of strspa * tyspa * valspa
 
-  withtype record = location LM.map
+  withtype record = value LM.map
   and strspa = space SM.map
-  and valspa = (value * IDS.idstat) SM.map
+  and valspa = value SM.map
   and tyspa  = valspa SM.map
+
+  fun toLoc (VAL (loc))    = loc
+    | toLoc (CON (loc, _)) = loc
+    | toLoc (EXC (loc, _)) = loc
 
 end

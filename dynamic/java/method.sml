@@ -19,10 +19,10 @@ structure Method = struct
 
   val i2ws2 = WordList.fromInt 2
 
-  fun new (name, desc, codes) cp = let
+  fun new (accs, name, desc, codes) cp = let
     val (cp1, id1) = CP.add cp (C_UTF (UTF_NAME (NUNQ name)))
     val (cp2, id2) = CP.add cp1 (C_UTF (UTF_DESC desc)) in
-    (([ACC_STATIC], id1, id2, [codes]) : method, cp2) end
+    ((accs, id1, id2, [codes]) : method, cp2) end
 
   fun add mp m cp = let
     val (method, newcp) = new m cp in

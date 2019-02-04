@@ -17,6 +17,12 @@ structure ListAux = struct
     List.foldr (fn (a, b) => (a ^ splitStr ^ b)) (tostr (List.last ls))
                (map tostr (List.take (ls, (length ls) - 1)))
 
+  fun prependOption (ls, l) = case l of NONE => ls | SOME i => i :: ls
+  fun fromOptionList (l :: ls) = (case l of 
+      NONE => fromOptionList ls 
+    | SOME i => i :: (fromOptionList ls))
+    | fromOptionList [] = []
+
   fun enumerate 0 _ _ = []
     | enumerate n init succ =
     if n < 0 then raise Size else

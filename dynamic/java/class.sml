@@ -1,5 +1,9 @@
 structure Class = struct
 
+  structure CP = ConstantPool
+  structure M  = Method
+  structure F  = Field
+
   datatype constant = datatype Constant.constant
   datatype classacc = datatype ClassAccess.classacc
   datatype attribute = datatype Attribute.attribute
@@ -51,5 +55,30 @@ structure Class = struct
     val os = BinIO.openOut f in
     BinIO.output (os, bs);
     BinIO.closeOut os end
+
+  datatype const = datatype ConstantPool.constant
+
+  fun addConst (clz : class) cst = let
+    val cpref = #1 clz in
+    CP.radd cpref cst end
+    
+  fun addMethod (clz : class) (md as (accs, name, desc, code)) = let
+    val mpref = #7 clz
+    val cpref = #1 clz in
+    M.radd mpref md cpref end
+
+  fun addField (clz : class) (fd as (accs, name, desc)) = let
+    val fpref = #6 clz
+    val cpref = #1 clz in
+    F.radd fpref fd cpref end
+
+  fun newClass (accs, this, super, interfaces) = let
+    val cpref = ref ([] : constant list)
+    val thisClass = CP.radd cpref (C_CLASS this)
+    val superClass = CP.radd cpref (C_CLASS super)
+    val interfaceClassList = 
+      map (fn name => CP.radd cpref (C_CLASS name)) interfaces
+    val class = (cpref, accs, thisClass, superClass, interfaceClassList,
+      ref [], ref [], ref []) : class in class end
 
 end

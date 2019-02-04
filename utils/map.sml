@@ -30,5 +30,9 @@ functor OrdMapAuxFn (Map : ORD_MAP) = struct
 
   fun modify m1 m2 = unionWith (fn (a, b) => b) (m1, m2)
 
+  fun newKey m init succ = let
+    val keyset = keySet m in
+    KS.getExclusion keyset init succ end
+
 end
 
