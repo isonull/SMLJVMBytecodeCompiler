@@ -4,7 +4,11 @@ structure InterInstruction = struct
 
   type loc = int * int
   type fid = int
+
   datatype scon = datatype SpecialConstant.scon
+
+  val etagBind  = 0
+  val etagMatch = 1
 
   datatype code =
     MOV    of loc * loc |
@@ -12,16 +16,29 @@ structure InterInstruction = struct
     NEWFCN of loc * fid |
     NEWSCN of loc * scon |
     NEWRCD of loc * ((loc * string) list) |
-    NEWCON of loc * loc * int |
-    GETRCD of loc * loc * string * label |
-    GETCON of loc * loc * int * label |
-    GETINT of loc * int * label |
+    NEWTAG of loc * loc * int |
+
+    MATRCD of loc * loc * string * label |
+    MATTAG of loc * loc * int * label |
+    MATINT of loc * int * label |
 
     CALL   of loc * loc * loc |
+    RAISE  of loc |
+
     IADD   of loc * loc |
 
     LABEL  of label |
-    RETURN of loc
+    GOTO   of label |
+
+    EXSTR  of int |
+    EXEND  of int |
+    HDEND  of int |
+
+    RBIND |
+    RMATCH |
+
+    RETURN of loc |
+    EXIT
 
   withtype label = int
   and instruction = code
@@ -30,45 +47,39 @@ structure InterInstruction = struct
 
   fun l2s (a, b) = "(" ^ (i2s a) ^ "," ^ (i2s b) ^ ")"
 
-  fun isBr (MOV    _) = false
-    | isBr (NEWFCN _) = false
-    | isBr (NEWSCN _) = false
-    | isBr (NEWRCD _) = false
-    | isBr (NEWCON _) = false
-    | isBr (GETRCD _) = true
-    | isBr (GETCON _) = true
-    | isBr (GETINT _) = true
-    | isBr (CALL   _) = false
-    | isBr (IADD   _) = false
-    | isBr (LABEL  _) = false
-    | isBr (RETURN _) = false
+  fun br (MOV    _)            = []
+    | br (NEWFCN _)            = []
+    | br (NEWSCN _)            = []
+    | br (NEWRCD _)            = []
+    | br (NEWTAG _)            = []
+    | br (MATRCD (_, _, _, l)) = [l]
+    | br (MATTAG (_, _, _, l)) = [l]
+    | br (MATINT (_, _, l))    = [l]
+    | br (CALL   _)            = []
+    | br (IADD   _)            = []
+    | br (LABEL  _)            = []
+    | br (RETURN _)            = []
+    | br (GOTO b)              = [b]
+    | br RBIND                 = []
+    | br RMATCH                = []
 
-  fun br (MOV    _) = NONE
-    | br (NEWFCN _) = NONE
-    | br (NEWSCN _) = NONE
-    | br (NEWRCD _) = NONE
-    | br (NEWCON _) = NONE
-    | br (GETRCD (_, _, _, l)) = SOME l
-    | br (GETCON (_, _, _, l)) = SOME l
-    | br (GETINT (_, _, l))    = SOME l
-    | br (CALL   _) = NONE
-    | br (IADD   _) = NONE
-    | br (LABEL  _) = NONE
-    | br (RETURN _) = NONE
-  
-
-  fun getLocs (MOV    (l1, l2)) = [l1, l2]
-    | getLocs (NEWFCN (l, _)) = [l]
-    | getLocs (NEWSCN (l, _)) = [l]
-    | getLocs (NEWRCD (l, ls)) = l :: (List.map #1 ls)
-    | getLocs (NEWCON (l1, l2, _)) = [l1, l2]
-    | getLocs (GETRCD (l1, l2, _, _)) = [l1, l2]
-    | getLocs (GETCON (l1, l2, _, _)) = [l1, l2]
-    | getLocs (GETINT (l, _, _)) = [l]
-    | getLocs (CALL   (l1, l2, l3)) = [l1, l2, l3]
-    | getLocs (IADD   (l1, l2)) = [l1, l2]
-    | getLocs (LABEL  _) = []
-    | getLocs (RETURN l) = [l]
+  fun getLocs (MOV    (l1, l2))       = [l1, l2]
+    | getLocs (NEWFCN (l, f))         = [l]
+    | getLocs (NEWSCN (l, s))         = [l]
+    | getLocs (NEWRCD (l, ls))        = l :: (List.map #1 ls)
+    | getLocs (NEWTAG (l1, l2, c))    = [l1, l2]
+    | getLocs (MATRCD (l1, l2, l, b)) = [l1, l2]
+    | getLocs (MATTAG (l1, l2, c, b)) = [l1, l2]
+    | getLocs (MATINT (l, i, b))      = [l]
+    | getLocs (CALL   (l1, l2, l3))   = [l1, l2, l3]
+    | getLocs (RAISE   l)   = [l]
+    | getLocs (IADD   (l1, l2))       = [l1, l2]
+    | getLocs (LABEL  l)              = []
+    | getLocs (GOTO l)                = []
+    | getLocs RBIND                   = []
+    | getLocs RMATCH                  = []
+    | getLocs (RETURN l)              = [l]
+    | getLocs EXIT                    = []
 
   fun toString (MOV    (l1, l2)) = "MOV" ^ " " ^ (l2s l1) ^ " " ^ (l2s l2)
     | toString (NEWSCN (l, sc))  = "NEWSCN"  ^ " " ^ (l2s l) ^ " " ^
@@ -76,18 +87,25 @@ structure InterInstruction = struct
     | toString (NEWFCN (l, f)) = "NEWFCN" ^ " " ^ (l2s l) ^ " " ^ (i2s f)
     | toString (NEWRCD (l, ls))  = "NEWRCD" ^ " " ^ (l2s l) ^ " " ^
     (ListAux.toString ls (fn (lc, lb) => (l2s lc) ^ " " ^ lb) " ")
-    | toString (GETRCD (l1, l2, lab, tar)) = "GETRCD" ^ " " ^ (l2s l1) ^ " " ^
+    | toString (MATRCD (l1, l2, lab, tar)) = "MATRCD" ^ " " ^ (l2s l1) ^ " " ^
     (l2s l2) ^ " " ^ lab ^ " L" ^ (i2s tar)
-    | toString (NEWCON (l1, l2, tag)) = "NEWCON" ^ " " ^ (l2s l1) ^ " " ^
+    | toString (NEWTAG (l1, l2, tag)) = "NEWTAG" ^ " " ^ (l2s l1) ^ " " ^
     (l2s l2) ^ " " ^ (i2s tag)
-    | toString (GETCON (l1, l2, tag, tar)) = "GETCON" ^ " " ^ (l2s l1) ^ " " ^
+    | toString (MATTAG (l1, l2, tag, tar)) = "MATTAG" ^ " " ^ (l2s l1) ^ " " ^
     (l2s l2) ^ " " ^ (i2s tag) ^ " L" ^ (i2s tar)
     | toString (CALL   (l1, l2, l3)) = "CALL" ^ " " ^ (l2s l1) ^ " " ^ (l2s l2)
     ^ " " ^ (l2s l3)
-    | toString (GETINT (l, i, tar)) = "GETINT" ^ " " ^ (l2s l) ^ " " ^
+    | toString (RAISE l) = "RAISE" ^ " " ^ (l2s l)
+    | toString (MATINT (l, i, tar)) = "MATINT" ^ " " ^ (l2s l) ^ " " ^
     (i2s i) ^ " L" ^ (i2s tar)
     | toString (IADD   (l1, l2)) = "IADD" ^ " " ^ (l2s l1) ^ " " ^ (l2s l2)
     | toString (LABEL  (lab)) = "L" ^ (i2s lab)
     | toString (RETURN l) = "RETURN" ^ " " ^ (l2s l)
-
+    | toString (EXSTR i) = "EXSTR" ^ " " ^ (i2s i)
+    | toString (EXEND i) = "EXEND" ^ " " ^ (i2s i)
+    | toString (HDEND i) = "HDEND" ^ " " ^ (i2s i)
+    | toString RBIND   = "RBIND"
+    | toString RMATCH  = "RMATCH"
+    | toString (GOTO i) = "GOTO " ^  (i2s i)
+    | toString EXIT = "EXIT"
 end

@@ -468,4 +468,7 @@ structure Instruction = struct
     | toWords IMPDEP2    = [0wxff]
 
   val size = length o toWords
+
+  val listSize = List.foldl (fn (i, l) => (l + size i)) 0
+
 end

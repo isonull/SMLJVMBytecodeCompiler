@@ -1,6 +1,10 @@
 structure Attribute = struct
 
+  structure CP = ConstantPool
+
   datatype instruction = datatype Instruction.instruction
+  datatype constant = datatype CP.constant
+  datatype utf = datatype CP.utf
 
   datatype attribute =
     ATTR_CONST of tagindex * cpindex |
@@ -20,6 +24,12 @@ structure Attribute = struct
 
   val MAXSTACK = 100
   val MAXLOCAL = 100
+
+  datatype attributei = CODE of instruction list
+
+  fun new cpref (CODE insts) = let
+    val tag = CP.radd cpref (C_UTF (UTF_STRI "Code")) in
+    ATTR_CODE (tag, insts, [], []) end
 
   fun toWords (ATTR_CONST (tagindex, cpindex)) =
     (i2ws2 tagindex) @ (i2ws2 cpindex)

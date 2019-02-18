@@ -3,6 +3,7 @@ structure Class = struct
   structure CP = ConstantPool
   structure M  = Method
   structure F  = Field
+  structure A = Attribute
 
   datatype constant = datatype Constant.constant
   datatype classacc = datatype ClassAccess.classacc
@@ -71,6 +72,10 @@ structure Class = struct
     val fpref = #6 clz
     val cpref = #1 clz in
     F.radd fpref fd cpref end
+
+  fun newAttr (clz : class) (at) = let
+    val cpref = #1 clz in
+    A.new cpref at end
 
   fun newClass (accs, this, super, interfaces) = let
     val cpref = ref ([] : constant list)

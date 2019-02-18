@@ -14,13 +14,16 @@ structure InterClosure = struct
 
   val i2s = Int.toString
 
-  fun c2s (locset, (method, _)) = let
+  fun c2s (locset, method) = let
     val s2 = IS.toString locset i2s ","
     val s3 = IM.toString method in
     s2 ^ "\n" ^ s3 end
 
-  fun prevClosid (TOP (_, _)) = NONE
-    | prevClosid (FCN (cid, _, _)) = SOME cid
+  fun getMethod (TOP (_, m)) = m
+    | getMethod (FCN (_, _, m)) = m
+
+  fun prevClosid (TOP (_, _)) = ~1
+    | prevClosid (FCN (cid, _, _)) = cid
 
   fun toString (TOP (b, c)) = "TOP" ^ " " ^ (c2s (b, c))
     | toString (FCN (a, b, c)) = "FCN" ^ " " ^ (i2s a) ^ " " ^ (c2s (b, c))

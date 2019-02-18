@@ -10,6 +10,8 @@ Group is
 ./list.sml
 ./option.sml
 ./word.sml
+./graph.sml
+./counter.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

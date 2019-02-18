@@ -13,6 +13,9 @@ structure Descriptor = struct
     V_DESC of typ |
     M_DESC of mtyp
 
+  val classTyp = L o NBIN
+  val classDesc = V_DESC o classTyp
+
   fun toString (V_DESC typ) = (case typ of 
       B => "B" 
     | C => "C" 

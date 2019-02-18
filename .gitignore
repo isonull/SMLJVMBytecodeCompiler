@@ -24,3 +24,6 @@ frontend/sml.lex.*
 
 # CM
 **/.cm
+
+# java class file
+*.class

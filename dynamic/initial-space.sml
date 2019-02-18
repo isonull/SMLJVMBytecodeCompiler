@@ -4,18 +4,18 @@ structure InitialSpace = struct
   structure S = Space
 
   datatype value = datatype Value.value
-  datatype idstat = datatype IdentifierStatus.idstat
 
-  val iadd = "i+"
-  val isub = "i-"
-  val imul = "i*"
-  val idiv = "i/"
-  val ineg = "i~"
+  val iadd = "iadd"
+  val isub = "isub"
+  val imul = "imul"
+  val idiv = "idiv"
+  val ineg = "ineg"
 
-  val basList = [iadd, isub, imul, idiv, ineg]
-  val basValList = map (fn (s) => (s, (BAS s, VAL))) basList
+  val basNameList = [iadd, isub, imul, idiv, ineg]
+  val basValueList = 
+    [VAL (~1, 1), VAL (~1, 2), VAL (~1, 3), VAL (~1, 4), VAL (~1, 0)]
 
-  val valspa = VS.fromListPair basValList
+  val valspa = VS.fromListPair (ListPair.zip (basNameList, basValueList))
 
   val space = S.fromValspa valspa
 

@@ -1,6 +1,14 @@
 structure ListAux = struct
   exception EmptyList
 
+  fun last [l] = l
+    | last (l :: ls) = last ls
+    | last [] = raise Size
+
+  fun front [l] = []
+    | front (l :: ls) = l :: (front ls)
+    | front [] = []
+
   fun max [x] = x
     | max [] = raise EmptyList
     | max (x :: xs) = (fn (a, b) => if a > b then a else b) (x, max xs)
@@ -33,6 +41,9 @@ structure ListAux = struct
     | findIndexFrom [] _ _ = NONE
 
   fun findIndex xs y = findIndexFrom xs y 0
+
+  fun member (l :: ls, i) = l = i orelse member (ls, i)
+    | member ([], _) = false
 
 end
 

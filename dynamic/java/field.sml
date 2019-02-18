@@ -22,11 +22,12 @@ structure Field = struct
   fun new (accs, name, desc) cp = let
     val (cp1, id1) = CP.add cp (C_UTF (UTF_NAME (NUNQ name)))
     val (cp2, id2) = CP.add cp1 (C_UTF (UTF_DESC desc)) in
-    (([ACC_STATIC], id1, id2, []) : field, cp2) end
+    ((accs, id1, id2, []) : field, cp2) end
 
   fun add fp f cp = let
     val (field, newcp) = new f cp in
-    (fp @ [field], newcp) end
+    (if not (ListAux.member (fp, field)) then
+      fp @ [field] else fp, newcp) end
 
   fun radd fpref f cpref = let
     val (newfp, newcp) = add (! fpref) f (! cpref) in

@@ -94,6 +94,11 @@ structure ConstantPool = struct
     val (newcp2, id2) = add newcp1 (C_NAMETYPE (mn, dc)) in
     (newcp2 @ [CST_MREF (id1, id2)]) end
 
+    | (C_IREF   (cn, mn, dc)) => let
+    val (newcp1, id1) = add cp (C_CLASS cn)
+    val (newcp2, id2) = add newcp1 (C_NAMETYPE (mn, dc)) in
+    (newcp2 @ [CST_IREF (id1, id2)]) end
+
     | (C_INT i) => (cp @ [CST_INT i])
 
     | (C_NAMETYPE (n, d)) => let
