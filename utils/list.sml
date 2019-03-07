@@ -45,6 +45,12 @@ structure ListAux = struct
   fun member (l :: ls, i) = l = i orelse member (ls, i)
     | member ([], _) = false
 
+  fun rmDup [] = []
+    | rmDup (i :: is) = if member (is, i) then 
+        rmDup is else 
+        i :: (rmDup is)
+    
+
 end
 
 structure ListPairAux = struct

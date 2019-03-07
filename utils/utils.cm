@@ -12,6 +12,7 @@ Group is
 ./word.sml
 ./graph.sml
 ./counter.sml
+./IO.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

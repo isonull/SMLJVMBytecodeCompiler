@@ -28,6 +28,10 @@ functor OrdMapAuxFn (Map : ORD_MAP) = struct
     (#1 (Map.remove (m, k)))
     handle NotFound => m) map set
 
+  fun removeList map lst = List.foldl (fn (k, m) =>
+    (#1 (Map.remove (m, k)))
+    handle NotFound => m) map lst
+
   fun modify m1 m2 = unionWith (fn (a, b) => b) (m1, m2)
 
   fun newKey m init succ = let
