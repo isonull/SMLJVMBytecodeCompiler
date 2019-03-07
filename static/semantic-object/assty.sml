@@ -17,4 +17,6 @@ structure AsstySet = struct
 
   fun getNewAssty set = getExclusion set 0 (fn x => x + 1)
 
+  val ts = toString
+  fun toString set = ts set (Assty.toString) ","
 end

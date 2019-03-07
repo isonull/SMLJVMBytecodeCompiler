@@ -25,6 +25,8 @@ structure InitialStaticBasis = struct
   val refTycon  = "ref"
   val exnTycon  = "exn"
 
+
+
   val unitTyname = (([],unitTycon), 0, true)
   val boolTyname = (([],boolTycon), 0, true)
   val intTyname  = (([],intTycon ), 0, true)
@@ -58,6 +60,16 @@ structure InitialStaticBasis = struct
   val refTyfcn  = TF.fromTyname refTyname
   val exnTyfcn  = TF.fromTyname exnTyname
 
+  val intTy = CONTY ([], intTyname)
+  val intpairTy = ROWTY (LM.fromList [intTy, intTy])
+
+  val isubTysch = (VS.empty, FUNTY (intpairTy, intTy))
+  val iaddTysch = (VS.empty, FUNTY (intpairTy, intTy))
+  val imulTysch = (VS.empty, FUNTY (intpairTy, intTy))
+  val idivTysch = (VS.empty, FUNTY (intpairTy, intTy))
+  val inegTysch = (VS.empty, FUNTY (intTy, intTy))
+  val ioutTysch = (VS.empty, FUNTY (intTy, TY.ROWTY (LM.empty)))
+
   val boolValstr = (boolTysch, CON)
   val nilListValstr = (listTysch, CON)
   val conListValstr = ((VS.fromList [0],
@@ -65,6 +77,13 @@ structure InitialStaticBasis = struct
            CONTY ([VARTY 0], listTyname))), CON)
   val refValstr = ((VS.fromList [0], FUNTY (VARTY 0, (CONTY ([VARTY 0], refTyname)))), CON)
   val exnValstr = (exnTysch, EXC)
+
+  val isubValstr = (isubTysch, VAL)
+  val iaddValstr = (iaddTysch, VAL)
+  val imulValstr = (imulTysch, VAL)
+  val idivValstr = (idivTysch, VAL)
+  val inegValstr = (inegTysch, VAL)
+  val ioutValstr = (inegTysch, VAL)
 
   val unitValenv = SM.empty
   val intValenv = SM.empty
@@ -101,7 +120,7 @@ structure InitialStaticBasis = struct
   val tyenv = SM.fromListPair tyenvMapListPair
 
   val vidList = ["ref", "nil", "true", "false", "Match", "Bind",
-    "::", "=", ":="]
+    "::", "=", ":=", "isub", "iadd", "imul", "idiv", "ineg", "iout"]
 
   val refValstr   = refValstr
   val nilValstr   = nilListValstr
@@ -118,7 +137,8 @@ structure InitialStaticBasis = struct
            ROWTY LM.empty)), VAL)
 
   val valstrList = [refValstr, nilValstr, trueValstr, falseValstr,
-    matchValstr, bindValstr, conValstr, eqValstr, signValstr]
+    matchValstr, bindValstr, conValstr, eqValstr, signValstr,
+    isubValstr, iaddValstr, imulValstr, idivValstr, inegValstr, ioutValstr]
 
   val valenv = SM.fromListPair (ListPair.zip (vidList, valstrList))
 

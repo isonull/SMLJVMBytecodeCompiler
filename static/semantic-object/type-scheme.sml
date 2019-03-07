@@ -11,6 +11,9 @@ structure TypeScheme = struct
   type ins = TY.varty * tysch
   type insseq = ins list
 
+  fun toString (vs, t) =
+    "V" ^ (VS.toString vs) ^ "." ^ (TY.toString t)
+
   val wild = (VS.singleton 0, VARTY 0)
 
   fun fromTyname (tn as (_, a, _)) = let
@@ -23,9 +26,6 @@ structure TypeScheme = struct
     val vst = TY.getVartyset t
     val vs' = VS.intersection (vs, vst) in
     (vs', t) end
-
-  fun getFunTyschRes (vs, FUNTY (t1, t2)) = reg (vs, t2)
-    | getFunTyschRes _ = raise TY.WrongTypeForm "getFunTyschRes"
 
   fun getOpenVartyset (vs, t) =
     VS.difference (TY.getVartyset t, vs)
@@ -54,16 +54,20 @@ structure TypeScheme = struct
       | aux [] _ = [] in
     aux ts [] end
 
-
   fun instantiate ts tsis = let
     val tss = List.map (fn (a, ts) => ts) tsis
     val tstss' = disjointList (ts :: tss)
+
+    (* disjoint the insmap and the input type scheme *)
     val (vs', t') = hd tstss'
     val tss' = tl tstss'
     val tmp = ListPair.zip (tsis, tss')
+    (* new disjoint insmap *)
     val tsis' = map (fn ((a, ts), ts') => (a, ts')) tmp
+    (* new disjoint insmap type version *)
     val tyis' = map (fn (a, (vs, t)) => (a, t)) tsis'
-    val t'' = TY.instantiate t' tyis'
+    val t'' = TY.mapInstantiate t' (IM.fromListPair tyis')
+    (* take all tyvars *)
     val vs'' = VS.unions (List.map (fn (vs, t) => vs) tstss') in
     reg (vs'', t'') end
 
@@ -86,14 +90,15 @@ structure TypeScheme = struct
     val clos = VS.union (vs1, vs2)
     val (t, insseq) = TY.unify clos t1 t2
     val (clos', t) = reg (clos, t)
-    val insseq' = map (fn (v, t) => (v, reg (clos', t))) insseq
+    val insseq' = map (fn (v, t) => (v, reg (clos, t))) insseq
     val insmap = IM.fromListPair insseq' in
-    (print ((toString ts1) ^        " --- TS.1 \n" ^
-            (toString ts2) ^        " --- TS.2 \n" ^
-            (toString (clos', t)) ^ " --- TS.3 \n" ^
-            (IM.toString insmap Assty.toString toString ">" ";") ^ " --- TS.4 \n"));((clos', t), insmap) end
+    ((clos', t), insmap) end
 
-  and toString (vs, t) =
-    "V" ^ (VS.toString vs) ^ "." ^ (TY.toString t)
+  handle TY.UnifyFail s => (
+    TIO.println s;
+    TIO.println (toString ts1);
+    TIO.println (toString ts2);
+    raise TY.UnifyFail s)
+
 end
 

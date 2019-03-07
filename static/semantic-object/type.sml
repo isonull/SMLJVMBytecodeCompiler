@@ -9,6 +9,7 @@ structure Type = struct
   structure TN = TypeName
   structure VS = VartySet
   structure AS = IntBinarySetAux
+  structure IM = IntBinaryMapAux
 
   datatype ty =
     VARTY of varty |
@@ -33,6 +34,23 @@ structure Type = struct
 
   exception WrongTypeForm of string
   exception UnifyFail of string
+
+  fun toString (VARTY v) = Varty.toString v
+    | toString (ROWTY r) =
+    "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}"
+    | toString (CONTY (ts, n)) =
+      (LA.toString ts toString ",") ^ "." ^ (TN.toString n)
+    | toString (FUNTY (t1, t2)) = (toString t1) ^ "->" ^ (toString t2)
+    | toString (ASSTY t) = Assty.toString t
+
+  fun printUnifyFail t1 t2 = let
+    val st1 = toString t1
+    val st2 = toString t2 in
+    print ("UNIFY FAILED BETWEEN \n" ^ st1 ^ "\n" ^ st2) end
+
+  fun printWrongTypeForm t = let
+    val st = toString t in
+    print ("WRONG TYPE FORM \n" ^ st) end
 
   fun getVartyset (VARTY v) = VS.singleton v
     | getVartyset (ROWTY r) =
@@ -76,9 +94,26 @@ structure Type = struct
     | bnd (CONTY (tyseq, tyname)) s =
     CONTY (List.map (fn ty => bnd ty s) tyseq, tyname)
 
+  (* substitute the varty in an order *)
   fun substitute ty subseq = List.foldl (fn (s, ty) => sub ty s) ty subseq
 
+  (* substitute the assty in an order *)
   fun instantiate ty insseq = List.foldl (fn (i, ty) => ins ty i) ty insseq
+
+  (* check loop *)
+  fun mapInstantiate (VARTY vt) im = VARTY vt
+    | mapInstantiate (ASSTY a) im = let
+    val insop = IM.find (im, a) in
+    if Option.isSome insop then let 
+      val ins = Option.valOf insop in 
+      mapInstantiate ins im end else 
+      (ASSTY a) end
+    | mapInstantiate (ROWTY rowty) im = 
+    ROWTY (LM.map (fn ty => mapInstantiate ty im) rowty)
+    | mapInstantiate (FUNTY (argty, resty)) im =
+    FUNTY (mapInstantiate argty im, mapInstantiate resty im)
+    | mapInstantiate (CONTY (tyseq, tyname)) im =
+    CONTY (List.map (fn ty => mapInstantiate ty im) tyseq, tyname)
 
   fun bind ty bndseq = List.foldl (fn (b, ty) => bnd ty b) ty bndseq
 
@@ -156,14 +191,16 @@ structure Type = struct
 
     | aux cs (FUNTY (a1, r1)) (FUNTY (a2, r2)) s d = let
       val s' = aux cs a1 a2 s false
-      val s'' = aux cs a1 a2 s' false
+      val s'' = aux cs r1 r2 s' false
     in s'' @ (s' @ s) end
 
     | aux cs (ROWTY r1) (ROWTY r2) s d =
     if LM.numItems r1 = LM.numItems r2
     then LM.foldli (fn (k, t1, s) => let
         val t2 = Option.valOf (LM.find (r2, k))
-          handle Option.Option => raise UnifyFail "LAB NOT FOUND"
+          handle Option.Option => (
+          printUnifyFail (ROWTY r1) (ROWTY r2);
+          raise UnifyFail "LAB NOT FOUND")
       in (aux cs t1 t2 s false) @ s end) s r1
     else raise UnifyFail "ROWTY DIFFERENCE SIZE"
 
@@ -190,27 +227,29 @@ structure Type = struct
     (*| ifs (_ :: ss) = ifs ss*)
     (*| ifs [] = []*)
 
+  (* TODO: This function should never apply to instantiate as it removes linkage *)
   (* truncate the substitution, make them immediate and so separatable*)
   fun truncateSubseq ((t1, t2) :: ss) =
     (t1, substitute t2 ss) :: (truncateSubseq ss)
     | truncateSubseq [] = []
 
+  fun subseqToString seq = ListAux.toString seq (fn (a, b) => (toString a)
+    ^ (toString b)) "||"
+
   fun unify cs t1 t2 = let
     val subseq = gs cs t1 t2
+    (* ERROR!!!!!!! *)
     val tsubseq = truncateSubseq subseq
     val insseq = insseqFromSubseq tsubseq
     val bndseq = bndseqFromSubseq tsubseq
     val t = bind t1 bndseq
-  in (print ((toString t1) ^ " --- TY.1 \n" ^
-             (toString t2) ^ " --- TY.2 \n" ^
-             (toString t) ^  " --- TY.3 \n"));(t, insseq) end
+  in (t, insseq) end
+  handle UnifyFail s => (
+    TIO.println s;
+    TIO.println (toString t1);
+    TIO.println (toString t2);
+    raise UnifyFail s
+  )
 
-  and toString (VARTY v) = Varty.toString v
-    | toString (ROWTY r) =
-    "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}"
-    | toString (CONTY (ts, n)) =
-      (LA.toString ts toString ",") ^ "." ^ (TN.toString n)
-    | toString (FUNTY (t1, t2)) = (toString t1) ^ "->" ^ (toString t2)
-    | toString (ASSTY t) = Assty.toString t
 
 end

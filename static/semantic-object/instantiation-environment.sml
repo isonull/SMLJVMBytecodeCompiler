@@ -22,9 +22,7 @@ structure InstantiationEnvironment = struct
 
   fun unify m1 m2 = let
     val insseq = listItemsi m2 in
-    (print ((toString m1) ^ " --- I.1\n" ^
-            (toString m2) ^ " --- I.2\n" ^
-            (toString (insertInsseq m1 insseq)) ^ " --- I.3\n")); insertInsseq m1 insseq end
+    insertInsseq m1 insseq end
 
   and toString e = IM.toString e Assty.toString TS.toString ">" ";"
 

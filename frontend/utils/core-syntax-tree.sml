@@ -1,4 +1,4 @@
-structure CoreSyntaxTree : CORE_SYNTAX_TREE = struct
+structure CoreSyntaxTree = struct
 
   structure TC = TypeConstructor
   structure VID = ValueIdentifier
