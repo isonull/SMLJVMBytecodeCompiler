@@ -22,6 +22,9 @@ structure InterMethod = struct
 
     rev (bl meth [] [] NONE) end
 
+  val getLocs = ListAux.rmDup o
+      (List.concat o (List.map (fn i => II.getLocs i))) 
+
   fun toString method = ListAux.toString method II.toString "\n"
 
 end

@@ -10,10 +10,11 @@ structure InitialSpace = struct
   val imul = "imul"
   val idiv = "idiv"
   val ineg = "ineg"
+  val iout = "iout"
 
-  val basNameList = [iadd, isub, imul, idiv, ineg]
-  val basValueList = 
-    [VAL (~1, 1), VAL (~1, 2), VAL (~1, 3), VAL (~1, 4), VAL (~1, 0)]
+  val basNameList = [iadd, isub, imul, idiv, ineg, iout]
+  val basValueList =
+    [VAL (~1, 1), VAL (~1, 2), VAL (~1, 3), VAL (~1, 4), VAL (~1, 0), VAL (~1, 5)]
 
   val valspa = VS.fromListPair (ListPair.zip (basNameList, basValueList))
 

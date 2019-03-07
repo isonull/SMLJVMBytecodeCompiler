@@ -107,4 +107,108 @@ structure Allocation = struct
 
 end
 
+structure NewAllocation = struct
 
+  structure LocationKey = struct
+
+    type ord_key = (int * int)
+
+    fun compare ((x1,x2), (y1,y2)) = let
+      val o1 = Int.compare (x1, y1) in
+      if o1 = EQUAL then Int.compare (x2, y2) else o1 end
+
+  end
+
+  structure LocationBinaryMap = OrdMapAuxFn (BinaryMapFn (LocationKey))
+  structure LocationBinarySet = LocationBinaryMap.KeySet
+
+  structure LSET = LocationBinarySet
+  structure LMAP = LocationBinaryMap
+
+  structure IMAP = IntBinaryMapAux
+  structure ISET = IntBinarySetAux
+  structure ICT = IntCounter
+  structure II = InterInstruction
+  structure IM = InterMethod
+  structure IP = InterProgram
+
+  datatype clos = datatype InterClosure.closure
+  datatype instruction = datatype InterInstruction.code
+
+  datatype location =
+    LOC of int |
+    (* loc fldid *)
+    FLD of int |
+    NUL |
+    BAS of int
+
+  val valOf  = Option.valOf
+  val isSome = Option.isSome
+
+  fun genProg prog = let
+
+    val locmap = ref ((IMAP.map (fn _ => LMAP.empty) prog)
+    : (location LMAP.map) IMAP.map)
+    val baslm = LMAP.fromListPair ([((~1,~1), NUL)] @
+             (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD f))
+             InitialSpace.basValueList))
+    val _ = locmap := IMAP.insert (! locmap, ~1, baslm)
+
+    val locctmap = IMAP.map (fn TOP _ => ICT.newi 0
+                              | FCN _ => ICT.newi 1) prog
+    val fldctmap = IMAP.map (fn _ => ICT.newi ~1) prog
+
+    fun locnext i = (ICT.next o valOf) (IMAP.find (locctmap, i))
+    fun fldnext i = (ICT.next o valOf) (IMAP.find (fldctmap, i))
+
+    fun addlm cid (loc as (c, l)) = let
+      val lm = ! locmap
+      val clm = valOf (IMAP.find (lm, cid))
+      val psop = LMAP.find (clm, loc) in
+      if isSome psop then () else let
+        val p =
+        (if c = ~1 then
+          (if l = ~1 then NUL else BAS l) else
+          (if cid = c then
+            (if l <= 0 then
+              LOC (~l) else
+              LOC (locnext cid)) else
+            FLD (fldnext cid)))
+
+        val newclm = LMAP.insert (clm, loc, p)
+        val newlm  = IMAP.insert (lm, cid, newclm) in
+      locmap := newlm end end
+
+  fun genClos (cid, clos) = let
+
+    fun addclm c = addlm c
+
+  fun genMeth meth = let
+
+    val locs = IM.getLocs meth in
+
+    (* genMeth *)
+    List.map (fn (c, l) => let
+      val path = valOf (IP.path prog cid c) in
+      List.map (fn cid => addlm cid (c, l)) path end) locs end in
+
+    (* genClos *)
+    genMeth (case clos of
+                  TOP (_, m) => m
+                | FCN (_, _, m) => m) end in
+    (* genProg *)
+    IMAP.mapi (fn p => genClos p) prog;
+    ! locmap end
+
+  val i2s = Int.toString
+  fun l2s (a, b) = "(" ^ (i2s a) ^ "," ^ (i2s b) ^ ")"
+  fun lc2s (LOC i) = "LOC " ^ (i2s i)
+    | lc2s (FLD i) = "FLD " ^ (i2s i)
+    | lc2s NUL = "NUL"
+    | lc2s (BAS l) = "BAS " ^ (i2s l)
+
+  fun toString m = let
+    fun aux locmap = LMAP.toString locmap l2s lc2s " " "\n" in
+    IMAP.toString m i2s aux " " "\n\n\n" end
+
+end

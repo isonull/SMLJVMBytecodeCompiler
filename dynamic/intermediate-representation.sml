@@ -60,8 +60,10 @@ structure InterInference = struct
     clostkref := tl (! clostkref);
     (ty, closid, ! locref) end
 
+  fun pushclos entry = clostkref := entry :: (! clostkref)
+
   fun newclos ty = let
-    val newclos = (ty, newclosid (), ref ~1) in
+    val newclos = (ty, newclosid (), ref 0) in
     (clostkref := newclos :: (! clostkref); ! closidref) end
 
   fun popAdd code = let
@@ -80,6 +82,8 @@ structure InterInference = struct
     labref    := ~1;
     newclos T;
     progref := IM.empty)
+
+  val closnewed = ref false
 
   fun infScon scon = let
     val loc = newloc () in
@@ -110,15 +114,25 @@ structure InterInference = struct
     val loc = newloc ()
     val code = codeAtexp @ codeExp @ [CALL (loc, locExp, locAtexp)] in
     (code, loc) end
+
     | infExp spa (FN_EXP match) = let
       val fid = newclos F
       val code = infMatch spa match
       val _ = popAdd code
       val nloc = newloc () in
       ([NEWFCN (nloc, fid)], nloc) end
+
     | infExp spa (HAND_EXP (exp, match)) = let
       val (codeExp, locExp) = infExp spa exp in
       (codeExp, locExp) end
+  
+  and infFn spa (FN_EXP match) closidop = let
+    val fid = if isSome closidop then 
+        (pushclos (F, valOf closidop, ref 0); valOf closidop) else newclos F
+    val code = infMatch spa match
+    val _ = popAdd code
+    val nloc = newloc () in 
+    ([NEWFCN (nloc, fid)], nloc) end
 
   and infMrule spa (pat, exp) = let
     val nextlab = newlab ()
@@ -161,29 +175,46 @@ structure InterInference = struct
   and infValbind spa lab (NRE_VALBIND (vrow)) =
     infVrow spa lab vrow
     | infValbind spa lab (REC_VALBIND (vrow)) = let
-    val (patCodes, patVs, patLocs) = List.foldl
-    (fn ((pat , _), (code, vs, loc)) => let
-      val nloc = newloc ()
-      val (patCode, patVs) = infPat spa nloc lab pat
-      val code = code @ [patCode]
-      val vs = VS.modify vs patVs
-      val loc = loc @ [nloc] in
-      (code, vs, loc) end) ([], VS.empty, []) vrow
+    (*val (patCodes, patVs, patLocs) = List.foldl*)
+    (*(fn ((pat , _), (code, vs, loc)) => let*)
+      (*val nloc = newloc ()*)
+      (*val (patCode, patVs) = infPat spa nloc lab pat*)
+      (*val code = code @ [patCode]*)
+      (*val vs = VS.modify vs patVs*)
+      (*val loc = loc @ [nloc] in*)
+      (*(code, vs, loc) end) ([], VS.empty, []) vrow*)
 
-    val recspa = S.modifyValspa spa patVs
+    (*val recspa = S.modifyValspa spa patVs*)
 
-    val (expCodes, expLocs) = List.foldl
-    (fn ((_, exp), (code, loc)) => let
-      val (expCode, expLoc) = infExp recspa exp
-      val code = code @ [expCode]
-      val loc  = loc @ [expLoc] in
-      (code, loc) end) ([], []) vrow
+    (*val (expCodes, expLocs) = List.foldl*)
+    (*(fn ((_, exp), (code, loc)) => let*)
+      (*val (expCode, expLoc) = infExp recspa exp*)
+      (*val code = code @ [expCode]*)
+      (*val loc  = loc @ [expLoc] in*)
+      (*(code, loc) end) ([], []) vrow*)
 
-    val data = zip(zip (expCodes, expLocs), zip (patCodes, patLocs))
+    (*val data = zip(zip (expCodes, expLocs), zip (patCodes, patLocs))*)
 
-    val code = List.foldl (fn (((expCode, expLoc), (patCode, patLoc)), code) =>
-      code @ expCode @ [MOV (patLoc, expLoc)] @ patCode) [] data in
-    (code, patVs) end
+    (*val code = List.foldl (fn (((expCode, expLoc), (patCode, patLoc)), code) =>*)
+      (*code @ expCode @ [MOV (patLoc, expLoc)] @ patCode) [] data in*)
+    (*(code, patVs) end*)
+
+    val vidcidpl = List.map (fn (AT_PAT (LVID_ATPAT ([], vid)), exp) => 
+      (vid, newclosid ())
+      | _ => raise Match) vrow
+    val recvs = VS.fromListPair (List.map (fn (vid, cid)=> (vid, VAL (cid, 0))) vidcidpl)
+    val recspa = S.modifyValspa spa recvs
+
+    val cidvrow = ListPair.zip (vidcidpl, vrow)
+
+    val (vs, code) = List.foldl (fn (((vid, cid),(pat, exp)), (vs, code)) => let
+      val (codeExp, locExp) = infFn recspa exp (SOME cid)
+      val vsPat = VS.fromListPair [(vid, VAL (locExp))]
+      val nvs = VS.modify vs vsPat
+      val ncode = code @ codeExp in
+      (nvs, ncode) end) (VS.empty, []) cidvrow in (code, vs) end
+
+
 
   and infDatbind datbd = let
     val (code, vs, ts) = List.foldl (fn ((_, tycon, cb), (code, vs, ts)) => let
