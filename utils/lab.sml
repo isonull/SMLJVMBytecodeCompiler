@@ -17,7 +17,6 @@ structure LabKey : ORD_KEY = struct
 
 end
 
-structure LabBinarySet = OrdSetAuxFn (BinarySetFn (LabKey))
 
 structure LabBinaryMap = struct
   exception LabDuplication
@@ -34,3 +33,5 @@ structure LabBinaryMap = struct
       raise LabDuplication else
       insert (map, key, value) end
 end
+
+structure LabBinarySet = LabBinaryMap.KeySet

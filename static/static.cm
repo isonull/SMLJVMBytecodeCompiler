@@ -3,6 +3,7 @@ Group is
 ./semantic-object/semantic-object.cm
 ./initial-static-basis.sml
 ./static-inference.sml
+./unify.sml
 ../frontend/utils/utils.cm
 
 $/basis.cm

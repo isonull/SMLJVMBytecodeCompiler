@@ -5,12 +5,16 @@ structure Environment = struct
   structure VE = ValueEnvironment
   structure SM = StringBinaryMap
   structure SID = StructureEnvironment
+  structure LTCM = LongTypeConstructorMap
 
   datatype env = datatype SE.env
 
   val empty = ENV (SE.empty, TE.empty, VE.empty)
 
   fun instantiate (ENV (se, te, ve)) is = ENV (se, te, VE.instantiate ve is)
+
+  fun getLvidTyfcnMap (ENV (_, te, _)) = TE.foldli (fn (vid, tf, map) => 
+    LTCM.insert (map, ([], vid), tf) ) LTCM.empty (TE.getVidTyfcnMap te)
 
   fun getAsstyset (ENV (se, te, ve)) = VE.getAsstyset ve
 

@@ -9,6 +9,8 @@ structure ValueStructure = struct
 
   fun getAsstyset (ts, s) = TS.getAsstyset ts
 
+  fun noWildRowty (ts, s) = TS.noWildRowty ts
+
   fun toString (ts, is) =
     (TS.toString ts) ^ "," ^ (IS.toString is)
 

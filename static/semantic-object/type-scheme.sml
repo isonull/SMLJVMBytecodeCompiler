@@ -78,27 +78,14 @@ structure TypeScheme = struct
     (v, t) end
 
   fun insertRowTysch rts lab ts = let
-    fun aux ((v1, ROWTY row), (v2, t)) = (v1, row, v2, t)
+    fun aux ((v1, ROWTY (row, w)), (v2, t)) = (v1, row, v2, t, w)
       | aux _ = raise TY.WrongTypeForm "insertRowTysch"
-    val (v1, row, v2, t) = aux (disjoint rts ts)
+    val (v1, row, v2, t, w) = aux (disjoint rts ts)
     val v = VS.union (v1, v2)
-    val t = ROWTY (LM.insertUnoccupied row lab t) in
+    val t = ROWTY (LM.insertUnoccupied row lab t, w) in
     (v, t) end
 
-  fun unify ts1 ts2 = let
-    val ((vs1, t1), (vs2, t2)) = disjoint ts1 ts2
-    val clos = VS.union (vs1, vs2)
-    val (t, insseq) = TY.unify clos t1 t2
-    val (clos', t) = reg (clos, t)
-    val insseq' = map (fn (v, t) => (v, reg (clos, t))) insseq
-    val insmap = IM.fromListPair insseq' in
-    ((clos', t), insmap) end
-
-  handle TY.UnifyFail s => (
-    TIO.println s;
-    TIO.println (toString ts1);
-    TIO.println (toString ts2);
-    raise TY.UnifyFail s)
+  fun noWildRowty (_, t) = TY.noWildRowty t
 
 end
 

@@ -175,7 +175,7 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
     val pat    = patById "x"
     val patrow = [LAB_PATROW_ELE (l, pat), WILD_PATROW_ELE]
   in
-    FN_EXP [(pat, exp)]
+    FN_EXP [(AT_PAT (RCD_ATPAT patrow), exp)]
   end
     | labAtexpToFnExp _ = raise DerivedFormException
 

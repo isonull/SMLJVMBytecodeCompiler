@@ -14,6 +14,8 @@ structure ValueEnvironment = struct
   fun getAsstyset ve =
     SM.foldl (fn (vs, set) => AS.union (VS.getAsstyset vs, set)) AS.empty ve
 
+  fun noWildRowty ve = List.all (fn ts => VS.noWildRowty ts) (SM.listItems ve)
+
   fun toString tmap =
     SM.toString tmap VID.toString VS.toString " - " "\n"
 

@@ -15,6 +15,26 @@ structure TypeFunction = struct
     val ts = List.map (fn x => TY.VARTY x) is in
     (is, TY.CONTY (ts, tn)) end
 
+  (*calc_strictness no free variable in tyfcn *)
+  fun disjointVartyset (vs, ty) evset = let
+    val vsset = VS.fromList vs
+    val (_, tvsubseq) = VS.disjoint vsset evset
+    val vs' = LA.substitute vs tvsubseq
+    val ty' = TY.bind ty
+        (List.map (fn (a, b) => (a, TY.VARTY b)) tvsubseq) in
+    (vs', ty') end
+
+  fun apply tsseq (tf as (args, ty)) = let
+    val tsseqDisjoint = TS.disjointList tsseq
+    val (vs, evs) = List.foldl (fn ((vs, ty), (vss, evs)) =>
+      (VS.union (vss, vs),
+      VS.union (evs, TY.getVartyset ty))) (VS.empty, VS.empty) tsseqDisjoint
+    val tfDisjoint = disjointVartyset tf evs
+    val subseq = List.map (fn (arg, (vs, ty)) => (arg, ty))
+      (ListPair.zip (args, tsseqDisjoint))
+    val tyApp = TY.bind ty subseq in
+    (vs, tyApp) end   
+
   fun getArity (ts, _) = List.length ts
 
   fun appTyname tsseq tn = let

@@ -14,6 +14,9 @@ structure TypeEnvironment = struct
   fun getTynameset te = foldli (fn (tc, (tf, ve), set) =>
     T.add (set, (([], tc), TF.getArity tf, false))) T.empty te
 
+  fun getVidTyfcnMap te = foldli (fn (tc, (tf, _), map) => 
+    SM.insert (map, tc, tf)) SM.empty te
+
   fun toString te =
     SM.toString te TYC.toString TS.toString " - " "\n"
 end

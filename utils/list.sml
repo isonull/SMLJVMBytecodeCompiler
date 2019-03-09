@@ -20,6 +20,8 @@ structure ListAux = struct
   fun subsl xs subs = foldl (fn (sb, xs) => sub xs sb) xs subs
   fun subsr xs subs = foldr (fn (sb, xs) => sub xs sb) xs subs
 
+  val substitute = subsl
+
   fun toString nil tostr splitStr = ""
     | toString ls tostr splitStr =
     List.foldr (fn (a, b) => (a ^ splitStr ^ b)) (tostr (List.last ls))

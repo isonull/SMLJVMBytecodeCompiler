@@ -67,5 +67,14 @@ structure Context = struct
 
   fun closValenv c valenv = VE.map (fn (ts ,is) => (closTysch c ts, is)) valenv
 
+  (* apply the type function to all ungrounded tynames for unification *)
+  (* TODO: heuristic expanding? *)
+  (*fun tsGround c (vs, TY.CONTY (tyseq, ltycon)) = let*)
+    (*val tystr = Option.valOf (getTystr c ltycon)*)
+      (*handle Option => raise Option*)
+    (*val tsseq = List.map (fn ty => TS.reg (vs, ty)) tyseq*)
+    (*val res = TF.apply tsseq (#tyfcn tystr) in*)
+    (*TS.reg res end*)
+
   fun toString (t, u, e) = E.toString e
 end

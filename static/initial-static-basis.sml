@@ -25,8 +25,6 @@ structure InitialStaticBasis = struct
   val refTycon  = "ref"
   val exnTycon  = "exn"
 
-
-
   val unitTyname = (([],unitTycon), 0, true)
   val boolTyname = (([],boolTycon), 0, true)
   val intTyname  = (([],intTycon ), 0, true)
@@ -38,7 +36,8 @@ structure InitialStaticBasis = struct
   val refTyname  = (([],refTycon ), 1, true)
   val exnTyname  = (([],exnTycon ), 0, false)
 
-  val unitTysch = (VS.empty, TY.ROWTY (LM.empty))
+  val wildUnitTysch = (VS.empty, TY.ROWTY (LM.empty, true))
+  val unitTysch = (VS.empty, TY.ROWTY (LM.empty, false))
   val boolTysch = TS.fromTyname boolTyname
   val intTysch  = TS.fromTyname intTyname
   val wordTysch = TS.fromTyname wordTyname
@@ -49,7 +48,7 @@ structure InitialStaticBasis = struct
   val refTysch  = TS.fromTyname refTyname
   val exnTysch  = TS.fromTyname exnTyname
 
-  val unitTyfcn = ([], ROWTY (LM.empty))
+  val unitTyfcn = ([], ROWTY (LM.empty, false))
   val boolTyfcn = TF.fromTyname boolTyname
   val intTyfcn  = TF.fromTyname intTyname
   val wordTyfcn = TF.fromTyname wordTyname
@@ -61,19 +60,19 @@ structure InitialStaticBasis = struct
   val exnTyfcn  = TF.fromTyname exnTyname
 
   val intTy = CONTY ([], intTyname)
-  val intpairTy = ROWTY (LM.fromList [intTy, intTy])
+  val intpairTy = ROWTY (LM.fromList [intTy, intTy], false)
 
   val isubTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val iaddTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val imulTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val idivTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val inegTysch = (VS.empty, FUNTY (intTy, intTy))
-  val ioutTysch = (VS.empty, FUNTY (intTy, TY.ROWTY (LM.empty)))
+  val ioutTysch = (VS.empty, FUNTY (intTy, TY.ROWTY (LM.empty, false)))
 
   val boolValstr = (boolTysch, CON)
   val nilListValstr = (listTysch, CON)
   val conListValstr = ((VS.fromList [0],
-    FUNTY (ROWTY (LM.fromList [VARTY 0, CONTY ([VARTY 0], listTyname)]),
+    FUNTY (ROWTY (LM.fromList [VARTY 0, CONTY ([VARTY 0], listTyname)], false),
            CONTY ([VARTY 0], listTyname))), CON)
   val refValstr = ((VS.fromList [0], FUNTY (VARTY 0, (CONTY ([VARTY 0], refTyname)))), CON)
   val exnValstr = (exnTysch, EXC)
@@ -130,11 +129,11 @@ structure InitialStaticBasis = struct
   val bindValstr  = exnValstr
   val conValstr   = conListValstr
   val eqValstr    = ((VS.singleton 0,
-    FUNTY (ROWTY (LM.fromList [VARTY 0, VARTY 0]),
+      FUNTY (ROWTY (LM.fromList [VARTY 0, VARTY 0], false),
            CONTY ([], boolTyname))), VAL)
   val signValstr  = ((VS.singleton 0,
-    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY 0], refTyname), VARTY 0]),
-           ROWTY LM.empty)), VAL)
+    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY 0], refTyname), VARTY 0], false),
+           ROWTY (LM.empty, false))), VAL)
 
   val valstrList = [refValstr, nilValstr, trueValstr, falseValstr,
     matchValstr, bindValstr, conValstr, eqValstr, signValstr,

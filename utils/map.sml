@@ -17,6 +17,13 @@ functor OrdMapAuxFn (Map : ORD_MAP) = struct
 
   fun memberKey m k = KS.member (keySet m, k)
 
+  fun isSubmap m1 m2 = KS.isSubset (keySet m1, keySet m2)
+
+  fun excludeKeys m ks = KS.foldl (fn (k, ex) => 
+    if memberKey m k then false else ex) true ks
+
+  fun equalKeys m1 m2 = KS.equal (keySet m1, keySet m2)
+
   fun intersectKeyset map set  = KS.foldl (fn (k, m) => let
     val v = Map.find (map, k)
     fun aux (SOME v) = insert (m, k, v)
