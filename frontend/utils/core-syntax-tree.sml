@@ -72,7 +72,7 @@ structure CoreSyntaxTree = struct
     FUN_TY of ty * ty
 
   withtype id = string
-  and tyvar = string
+  and tyvar = string * bool (* eqtype *) 
 
   and vid = id
   and strid = id
@@ -263,7 +263,7 @@ structure CoreSyntaxTree = struct
     | fromPat (FST.LAY_PAT (vid, tyOption, pat)) =
     LAY_PAT (vid, Option.map fromTy tyOption, fromPat pat)
 
-  and fromTy (FST.VAR_TY tyvar) = VAR_TY tyvar
+  and fromTy (FST.VAR_TY (tyvar, eq)) = VAR_TY (tyvar, eq)
     | fromTy (FST.RCD_TY tyrow) = RCD_TY (fromTyrow tyrow)
     | fromTy (FST.CON_TY (tyseq, ltycon)) = CON_TY (map fromTy tyseq, ltycon)
     | fromTy (FST.TUP_TY tyseq) = fromTy (FST.tupTyToRcdTy (FST.TUP_TY tyseq))
@@ -349,15 +349,14 @@ structure CoreSyntaxTree = struct
     (vidToString vid) ^ ":" ^ (OA.toString tyOption tyToString " ") ^
     (patToString pat)
 
-  and tyToString (VAR_TY tyvar) = tyvarToString tyvar
+  and tyToString (VAR_TY (tyvar, eq)) = tyvarToString (tyvar, eq)
     | tyToString (RCD_TY tyrow) = tyrowToString tyrow
     | tyToString (CON_TY (tyseq, ltycon)) =
     (tyseqToString tyseq) ^ (ltyconToString ltycon)
     | tyToString (FUN_TY (ty, ty')) = (tyToString ty) ^ " -> " ^ (tyToString ty')
 
-
   and idToString id = id
-  and tyvarToString tyvar = "'" ^ tyvar
+  and tyvarToString (tyvar, eq) =  (if eq then "''" else "'") ^ tyvar
   and vidToString vid = vid
   and stridToString strid = strid
   and tyconToString tycon = tycon

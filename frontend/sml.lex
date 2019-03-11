@@ -24,20 +24,21 @@ hexdigit = [0-9a-fA-F];
 letter = [A-Za-z];
 num = {digit}+;
 hex = {hexdigit}+;
-ascii = {digit}|{letter};
+diglet = {digit}|{letter};
 
 int = ~?{num};
 word = (0w{num})|(0w{hex});
 float = (~?{num}\.{num})|(~?{num}(\.{num})?e~?{num});
-char = #\"({ascii})\";
-string = \"{ascii}*\";
+char = #\"(.)\";
+string = \".*\";
 
-symbol = [!%&$#+-/:<=>?@\~‘^|*];
+symbol = [!%&$#+-/:<=>?@\~'^|*];
 comment = \(\*.*\*\);
 
-id = ({letter}({letter}|{digit}|_|')*)|({symbol}+);
+id = ({letter}({diglet}|_|')*)|({symbol}+);
 iddot = {id}\.;
-var = '({letter}|{digit}|'|_)*;
+eqvar = ''({diglet}|_)({letter}|{digit}|'|_)*;
+var = '({diglet}|_)({letter}|{digit}|'|_)*;
 lid = {id}(\.{id})*;
 
 %%
@@ -94,7 +95,8 @@ lid = {id}(\.{id})*;
 "nonfix"    => (Tokens.NONFIX (!pos,!pos));
 
 {id}     => (Tokens.ID (yytext,!pos,!pos));
-{var}    => (Tokens.TYVAR (LexUtils.varLex yytext,!pos,!pos));
+{eqvar}  => (Tokens.TYVAR ((LexUtils.eqvarLex yytext, true),!pos,!pos));
+{var}    => (Tokens.TYVAR ((LexUtils.varLex yytext, false),!pos,!pos));
 {iddot}  => (Tokens.IDPRE (LexUtils.iddotLex yytext,!pos,!pos));
 
 {int}    => (Tokens.INTSCON  (LexUtils.intLex yytext,!pos,!pos));

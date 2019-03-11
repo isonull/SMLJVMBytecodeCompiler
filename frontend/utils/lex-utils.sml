@@ -28,6 +28,10 @@ structure LexUtils = struct
 
   fun varLex s = substring (s, 1, (size s) - 1)
 
+  fun eqvarLex s = let
+    fun f (#"'" :: cs) = f cs
+      | f cs = cs in implode (f (explode s)) end
+
   fun isNeg s = String.sub (s, 0) = #"~"
 
   fun intLex s =

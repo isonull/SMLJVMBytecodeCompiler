@@ -1,4 +1,4 @@
-structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
+structure FullSyntaxTree = struct
 
   structure SC = SpecialConstant
   datatype lab = datatype Lab.lab
@@ -78,14 +78,14 @@ structure FullSyntaxTree : FULL_SYNTAX_TREE = struct
     LAY_PAT of vid * ty option * pat
 
   and ty =
-    VAR_TY of tyvar |
+    VAR_TY of tyvar | 
     RCD_TY of tyrow |
     CON_TY of tyseq * ltycon |
     TUP_TY of tyseq |
     FUN_TY of ty * ty
 
   withtype id = string
-  and tyvar = string
+  and tyvar = string * bool (* equalable *) 
 
   and vid = id
   and strid = id
