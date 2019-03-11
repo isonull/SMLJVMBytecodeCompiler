@@ -14,10 +14,10 @@ structure TypeScheme = struct
   fun toString (vs, t) =
     "V" ^ (VS.toString vs) ^ "." ^ (TY.toString t)
 
-  val wild = (VS.singleton 0, VARTY 0)
+  val wild = (VS.singleton (0, false), VARTY (0, false))
 
   fun fromTyname (tn as (_, a, _)) = let
-    val is = List.tabulate (a, (fn x => x))
+    val is = List.tabulate (a, (fn x => (x, false)))
     val ts = List.map (fn x => TY.VARTY x) is in
     (VS.fromList is, TY.CONTY (ts, tn)) end
 

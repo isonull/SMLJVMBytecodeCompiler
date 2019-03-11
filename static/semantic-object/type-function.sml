@@ -11,7 +11,7 @@ structure TypeFunction = struct
   exception UnmatchedArity
 
   fun fromTyname (tn as (_, a, _)) = let
-    val is = List.tabulate (a, (fn x => x))
+    val is = List.tabulate (a, (fn x => (x, false)))
     val ts = List.map (fn x => TY.VARTY x) is in
     (is, TY.CONTY (ts, tn)) end
 

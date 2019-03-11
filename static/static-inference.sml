@@ -51,7 +51,6 @@ structure StaticInference = struct
     asstySet := AS.difference (! asstySet, set)
     )
 
-
   (* split the insmap to two part, one is used for instantiation
    * and the second part is instantiated and returned to lower layer *)
   fun getInsResI i c = let
@@ -86,8 +85,6 @@ structure StaticInference = struct
     TIO.println (TS.toString ts);
     TIO.println (TS.toString tsIns);
     (tsIns, iRes) end
-
-
 
   fun getFunTyschRes (vs, TY.FUNTY (t1, t2)) _ = TS.reg (vs, t2)
     | getFunTyschRes (vs, TY.ASSTY t) insmap =
@@ -389,7 +386,7 @@ structure StaticInference = struct
     val ts = TS.insertRowTysch tsPatrow lab tsPat
     val insmap = iUnify c iPat iPatrow in
     (ve, ts, insmap) end
-    | infPatrow _ ([], isWild) = (VE.empty, 
+    | infPatrow _ ([], isWild) = (VE.empty,
       if isWild then ISB.wildUnitTysch else ISB.unitTysch, I.empty)
 
   and infPat c pat = let val (ve, ts, i) = (
@@ -436,15 +433,18 @@ structure StaticInference = struct
     TIO.println (I.toString i);
     (ve, ts, i) end
 
-  and infTy c (VAR_TY tyvar) = let
+  and infTy c ty = let val res = (case ty of
+    (VAR_TY tyvar) => let
     val isTyvar = C.isTyvar c tyvar in
     if isTyvar then let
       val varty = Option.valOf (C.getVarty c tyvar) in
+      TIO.println (CST.tyToString ty) ;
+      TIO.println (Varty.toString varty) ;
       (VS.empty, TY.VARTY varty) end else
       raise StaticInferenceFail "TYVAR NOT EXPLICITLY DEFINED" end
 
-    | infTy c (RCD_TY tyrow) = infTyrow c tyrow
-    | infTy c (CON_TY (tyseq, ltycon)) = let
+    | (RCD_TY tyrow) => infTyrow c tyrow
+    | (CON_TY (tyseq, ltycon)) => let
     val tsseq = List.map (fn ty => infTy c ty) tyseq
     val tsLtyconOp = C.getTystr c ltycon in
     if Option.isSome tsLtyconOp then let
@@ -453,13 +453,15 @@ structure StaticInference = struct
         val tyname = Option.valOf tynameOp
         val ts = TF.appTyname tsseq tyname in ts end
       else raise StaticInferenceFail "INVALID TYNAME" end
-    else raise StaticInferenceFail "INVALID TYCON" end
+    else raise StaticInferenceFail "INVALID TYCON" end 
 
-    | infTy c (FUN_TY (argty, resty)) = let
+    | (FUN_TY (argty, resty)) => let
     val tsArg = infTy c argty
     val tsRes = infTy c resty
-    val tsFun = TS.getFunTysch tsArg tsRes in tsFun end
-
+    val tsFun = TS.getFunTysch tsArg tsRes in tsFun end) in
+    TIO.println ("infty " ^ (CST.tyToString ty));
+    TIO.println (TS.toString res);
+    res end
 
   and infTyrow   c ((lab, ty) :: tyrow) = let
     val tsTy = infTy c ty

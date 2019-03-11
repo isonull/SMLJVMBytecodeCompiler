@@ -2,47 +2,72 @@ structure Varty = struct
 
   structure SA = StringAux
 
-  type varty = int
+  type varty = int * bool
 
-  fun toString n = let
+  exception Equality
+
+  fun toString (n, eq) = let
     fun aux 0 = "a"
       | aux n = SA.succ (aux (n - 1))
-  in "'" ^ (aux n) end
+  in (if eq then "''" else "'") ^ (aux n) end
+
+end
+
+structure VartyKey : ORD_KEY = struct
+
+  type ord_key = Varty.varty
+
+  fun compare ((_, true), (_, false)) = GREATER
+    | compare ((_, false), (_, true)) = LESS
+    | compare ((v1, _), (v2, _)) = Int.compare (v1,v2)
 
 end
 
 structure VartySet = struct
 
-  open IntBinarySetAux
+  structure VS = OrdSetAuxFn (BinarySetFn (VartyKey))
+  open VS
 
-  structure IS = IntBinarySetAux
   structure VT = Varty
+  structure IM = IntBinaryMapAux
+  structure IS = IntBinarySetAux
 
-  type vartyset = IS.set
+  type vartyset = VS.set
   type sub = VT.varty * VT.varty
   type subseq = sub list
 
-  fun toString s = "(" ^ IS.toString s VT.toString "," ^ ")"
+  fun toString s = "(" ^ VS.toString s VT.toString "," ^ ")"
 
   (* throw NotFound *)
-  fun sub s (a, b) = IS.add ((IS.delete (s, a)), b)
+  fun sub s (a, b) = VS.add ((VS.delete (s, a)), b)
 
-  fun substitute set subseq =
-    List.foldl (fn (sb, set) => sub set sb) set subseq
+  (* Written in parent *)
+  (*fun substitute set subseq =*)
+    (*List.foldl (fn (sb, set) => sub set sb) set subseq*)
 
+  fun toIntSet set = VS.foldl (fn ((v, eq), is) => IS.add (is, v)) IS.empty set
+  fun toEqmap set = 
+    VS.foldl (fn ((v, eq), m) => IM.insert (m, v, eq)) IM.empty set
+
+  (* Written in parent *)
   (* generate a subseq for s on excluding es *)
-  fun aux (v :: vs) es =
-    if IS.member (es, v) then
-      let val ex = IS.union (es, IS.fromList vs)
-        val n = getExclusion ex 0 (fn x => x + 1)
-        val es' = IS.add (es, n)
-      in (v, n) :: aux vs es' end
-    else aux vs (IS.add (es, v))
-    | aux [] _ = []
+  (*fun aux (v :: vs) es =*)
+    (*if IS.member (es, v) then*)
+      (*let val ex = IS.union (es, IS.fromList vs)*)
+        (*val n = getExclusion ex 0 (fn x => x + 1)*)
+        (*val es' = IS.add (es, n)*)
+      (*in (v, n) :: aux vs es' end*)
+    (*else aux vs (IS.add (es, v))*)
+    (*| aux [] _ = []*)
 
   fun disjoint s1 s2 = let
-    val sb = aux (IS.listItems s1) s2
-    val s1' = substitute s1 sb
-  in (s1', sb) end
+    val vs1 = toIntSet s1
+    val vs2 = toIntSet s2
+    val em1 = toEqmap s1
+    val sb = IS.getDisjointSub vs1 vs2 0 (fn x => x + 1)
+    val vsb = List.map (fn (s, t) => let
+      val eq = Option.valOf (IM.find (em1, s)) in ((s,eq), (t,eq)) end) sb
+    val s1' = substitute s1 vsb
+  in (s1', vsb) end
 
 end

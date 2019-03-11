@@ -71,10 +71,11 @@ structure InitialStaticBasis = struct
 
   val boolValstr = (boolTysch, CON)
   val nilListValstr = (listTysch, CON)
-  val conListValstr = ((VS.fromList [0],
-    FUNTY (ROWTY (LM.fromList [VARTY 0, CONTY ([VARTY 0], listTyname)], false),
-           CONTY ([VARTY 0], listTyname))), CON)
-  val refValstr = ((VS.fromList [0], FUNTY (VARTY 0, (CONTY ([VARTY 0], refTyname)))), CON)
+  val conListValstr = ((VS.fromList [(0, false)],
+    FUNTY (ROWTY (LM.fromList [VARTY (0, false), CONTY ([VARTY (0, false)], listTyname)], false),
+           CONTY ([VARTY (0, false)], listTyname))), CON)
+  val refValstr = ((VS.fromList [(0, false)], FUNTY (VARTY (0, false), (CONTY ([VARTY (0,
+                                false)], refTyname)))), CON)
   val exnValstr = (exnTysch, EXC)
 
   val isubValstr = (isubTysch, VAL)
@@ -96,7 +97,7 @@ structure InitialStaticBasis = struct
     [("true", boolValstr), ("false", boolValstr)]
 
   val listValenv = SM.fromListPair
-    [("nil", nilListValstr), ("::", conListValstr)]
+    [("nil", nilListValstr), ("con", conListValstr)]
 
   val refValenv = SM.fromListPair [("ref", refValstr)]
 
@@ -119,7 +120,7 @@ structure InitialStaticBasis = struct
   val tyenv = SM.fromListPair tyenvMapListPair
 
   val vidList = ["ref", "nil", "true", "false", "Match", "Bind",
-    "::", "=", ":=", "isub", "iadd", "imul", "idiv", "ineg", "iout"]
+    "con", "eq", "asn", "isub", "iadd", "imul", "idiv", "ineg", "iout"]
 
   val refValstr   = refValstr
   val nilValstr   = nilListValstr
@@ -128,11 +129,12 @@ structure InitialStaticBasis = struct
   val matchValstr = exnValstr
   val bindValstr  = exnValstr
   val conValstr   = conListValstr
-  val eqValstr    = ((VS.singleton 0,
-      FUNTY (ROWTY (LM.fromList [VARTY 0, VARTY 0], false),
+  val eqValstr    = ((VS.singleton (0, false),
+      FUNTY (ROWTY (LM.fromList [VARTY (0, true), VARTY (0, true)], false),
            CONTY ([], boolTyname))), VAL)
-  val signValstr  = ((VS.singleton 0,
-    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY 0], refTyname), VARTY 0], false),
+  val signValstr  = ((VS.singleton (0, false),
+    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY (0, false)], refTyname), VARTY (0,
+                                      false)], false),
            ROWTY (LM.empty, false))), VAL)
 
   val valstrList = [refValstr, nilValstr, trueValstr, falseValstr,

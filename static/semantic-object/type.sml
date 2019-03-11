@@ -23,7 +23,7 @@ structure Type = struct
   and tyseq = ty list
   and conty = tyseq * tyname
   and assty = int
-  and varty = int
+  and varty = Varty.varty
 
   type sub = ty * ty
   type ins = assty * ty
