@@ -15,10 +15,10 @@ structure InterInstruction = struct
 
     NEWFCN of loc * fid |
     NEWSCN of loc * scon |
-    NEWRCD of loc * ((loc * string) list) |
+    NEWRCD of loc * (loc list) |
     NEWTAG of loc * loc * int |
 
-    MATRCD of loc * loc * string * label |
+    MATRCD of loc * loc * int |
     MATTAG of loc * loc * int * label |
     MATINT of loc * int * label |
 
@@ -33,9 +33,6 @@ structure InterInstruction = struct
     EXSTR  of int |
     EXEND  of int |
     HDEND  of int |
-
-    RBIND |
-    RMATCH |
 
     RETURN of loc |
     EXIT
@@ -52,7 +49,7 @@ structure InterInstruction = struct
     | br (NEWSCN _)            = []
     | br (NEWRCD _)            = []
     | br (NEWTAG _)            = []
-    | br (MATRCD (_, _, _, l)) = [l]
+    | br (MATRCD (_, _, _))    = []
     | br (MATTAG (_, _, _, l)) = [l]
     | br (MATINT (_, _, l))    = [l]
     | br (CALL   _)            = []
@@ -60,15 +57,13 @@ structure InterInstruction = struct
     | br (LABEL  _)            = []
     | br (RETURN _)            = []
     | br (GOTO b)              = [b]
-    | br RBIND                 = []
-    | br RMATCH                = []
 
   fun getLocs (MOV    (l1, l2))       = [l1, l2]
     | getLocs (NEWFCN (l, f))         = [l]
     | getLocs (NEWSCN (l, s))         = [l]
-    | getLocs (NEWRCD (l, ls))        = l :: (List.map #1 ls)
+    | getLocs (NEWRCD (l, ls))        = l :: ls
     | getLocs (NEWTAG (l1, l2, c))    = [l1, l2]
-    | getLocs (MATRCD (l1, l2, l, b)) = [l1, l2]
+    | getLocs (MATRCD (l1, l2, l))    = [l1, l2]
     | getLocs (MATTAG (l1, l2, c, b)) = [l1, l2]
     | getLocs (MATINT (l, i, b))      = [l]
     | getLocs (CALL   (l1, l2, l3))   = [l1, l2, l3]
@@ -76,8 +71,6 @@ structure InterInstruction = struct
     | getLocs (IADD   (l1, l2))       = [l1, l2]
     | getLocs (LABEL  l)              = []
     | getLocs (GOTO l)                = []
-    | getLocs RBIND                   = []
-    | getLocs RMATCH                  = []
     | getLocs (RETURN l)              = [l]
     | getLocs EXIT                    = []
 
@@ -86,9 +79,9 @@ structure InterInstruction = struct
     (SC.toString sc)
     | toString (NEWFCN (l, f)) = "NEWFCN" ^ " " ^ (l2s l) ^ " " ^ (i2s f)
     | toString (NEWRCD (l, ls))  = "NEWRCD" ^ " " ^ (l2s l) ^ " " ^
-    (ListAux.toString ls (fn (lc, lb) => (l2s lc) ^ " " ^ lb) " ")
-    | toString (MATRCD (l1, l2, lab, tar)) = "MATRCD" ^ " " ^ (l2s l1) ^ " " ^
-    (l2s l2) ^ " " ^ lab ^ " L" ^ (i2s tar)
+    (ListAux.toString ls l2s " ")
+    | toString (MATRCD (l1, l2, i)) = "MATRCD" ^ " " ^ (l2s l1) ^ " " ^
+    (l2s l2) ^ " " ^ (i2s i)
     | toString (NEWTAG (l1, l2, tag)) = "NEWTAG" ^ " " ^ (l2s l1) ^ " " ^
     (l2s l2) ^ " " ^ (i2s tag)
     | toString (MATTAG (l1, l2, tag, tar)) = "MATTAG" ^ " " ^ (l2s l1) ^ " " ^
@@ -104,8 +97,6 @@ structure InterInstruction = struct
     | toString (EXSTR i) = "EXSTR" ^ " " ^ (i2s i)
     | toString (EXEND i) = "EXEND" ^ " " ^ (i2s i)
     | toString (HDEND i) = "HDEND" ^ " " ^ (i2s i)
-    | toString RBIND   = "RBIND"
-    | toString RMATCH  = "RMATCH"
     | toString (GOTO i) = "GOTO " ^  (i2s i)
     | toString EXIT = "EXIT"
 end

@@ -20,6 +20,8 @@ structure StaticInference = struct
   structure IM = IntBinaryMapAux
   structure IS = IntBinarySetAux
 
+  structure ICT = IntermediateSyntaxTree
+
   exception StaticInferenceFail of string
 
   datatype idstat    = datatype IdentifierStatus.idstat
@@ -42,12 +44,10 @@ structure StaticInference = struct
   (* create a new assty with optional parent p *)
   fun newAssty p = let
     val new = AS.getNewAssty (! asstySet) in
-    TIO.println ("NEWASSTY " ^ (Assty.toString new));
     asstySet := AS.add (! asstySet, new);
     new end
 
   fun rmAsstys set = (
-    TIO.println ("RMASSTY " ^ (AS.toString set));
     asstySet := AS.difference (! asstySet, set)
     )
 
@@ -67,11 +67,6 @@ structure StaticInference = struct
   fun veInstantiateKeys ve i c = let
     val (iIns, iRes) = getInsResI i c
     val veIns = VE.instantiate ve (I.listItemsi iIns) in
-    TIO.println ("VE INSTANTIATE");
-    TIO.println (I.toString iIns);
-    TIO.println (I.toString iRes);
-    TIO.println (VE.toString ve);
-    TIO.println (VE.toString veIns);
     if VE.noWildRowty veIns then
     (veIns, iRes) else
     raise StaticInferenceFail "WILD ROWTY IN VALBIND" end
@@ -79,11 +74,6 @@ structure StaticInference = struct
   fun tsInstantiateKeys ts i c = let
     val (iIns, iRes) = getInsResI i c
     val tsIns = TS.instantiate ts (I.listItemsi iIns) in
-    TIO.println ("TS INSTANTIATE");
-    TIO.println (I.toString iIns);
-    TIO.println (I.toString iRes);
-    TIO.println (TS.toString ts);
-    TIO.println (TS.toString tsIns);
     (tsIns, iRes) end
 
   fun getFunTyschRes (vs, TY.FUNTY (t1, t2)) _ = TS.reg (vs, t2)
@@ -99,35 +89,40 @@ structure StaticInference = struct
     | infScon (CHAR_SCON _) = ISB.charTysch
     | infScon (STR_SCON _)  = ISB.strTysch
 
-  fun infAtexp c (SCON_ATEXP scon) = (infScon scon, I.empty)
+  fun infAtexp c (SCON_ATEXP scon) = (infScon scon, I.empty, ICT.SCON_ATEXP scon)
     | infAtexp c (LVID_ATEXP lvid) = (
-    (#1 (Option.valOf (C.getValstr c lvid)), I.empty)
+    (#1 (Option.valOf (C.getValstr c lvid)), I.empty, ICT.LVID_ATEXP lvid)
     handle Option => raise StaticInferenceFail "unknown long value identifier")
     | infAtexp c (RCD_ATEXP exprow) = infExprow c exprow
     | infAtexp c (LET_ATEXP (dec, exp)) = let
     (* TODO: type name escape avoidence *)
-    val (eDec, iDec) = infDec c dec
+    val (eDec, iDec, sDec) = infDec c dec
     val cExp = C.envAugment c eDec
-    val (tsExp, iExp) = infExp cExp exp
+    val (tsExp, iExp, sExp) = infExp cExp exp
     val insmap = iUnify c iExp iDec in
-    (tsExp, insmap) end
-    | infAtexp c (EXP_ATEXP exp) = infExp c exp
+    (tsExp, insmap, ICT.LET_ATEXP (sDec, sExp)) end
+    | infAtexp c (EXP_ATEXP exp) = let 
+      val (a, b, sExp) = infExp c exp in
+      (a, b, ICT.EXP_ATEXP sExp) end
 
-  and infExprow c ((lab, exp) :: exprow) = let
-    val (tsExp, iExp) = infExp c exp
-    val (tsExprow, iExprow) = infExprow c exprow
-    val ts = TS.insertRowTysch tsExprow lab tsExp
-    val insmap = iUnify c iExp iExprow in
-    (ts, insmap) end
-    | infExprow c [] = (ISB.unitTysch, I.empty)
+  and infExprow c exprow = let val (ts, i, syn) =
+    List.foldl (fn ((lab, exp), (ts, i, syn)) => let
+      val (tsExp, iExp, sExp) = infExp c exp
+      val ts = TS.insertRowTysch ts lab tsExp
+      val insmap = iUnify c iExp i 
+      val syn = (lab, sExp) :: syn in (ts, insmap, syn) end)
+      (ISB.unitTysch, I.empty, []) exprow in 
+    (ts, i, ICT.RCD_ATEXP (List.rev syn)) end
 
-  and infExp c exp = let val (ts, i) = case exp of
-      (AT_EXP atexp) => infAtexp c atexp
+  and infExp c exp = let val (ts, i, syn) = case exp of
+      (AT_EXP atexp) => let 
+      val (a, b, sAtexp) = infAtexp c atexp in
+      (a, b, ICT.AT_EXP sAtexp) end
 
     | (APP_EXP (exp, atexp)) => let
-    val (tsExp, iExp) = infExp c exp
-    val (tsAtexp, iAtexp) = infAtexp c atexp
-    val (tsExp', iExp') = case tsExp of
+      val (tsExp, iExp, sExp) = infExp c exp
+      val (tsAtexp, iAtexp, sAtexp) = infAtexp c atexp
+      val (tsExp', iExp') = case tsExp of
         (_, TY.ASSTY a) => let
           val newAt = newAssty (SOME a)
           val tsExp' = TS.getFunTysch tsAtexp (VS.empty, TY.ASSTY newAt)
@@ -141,143 +136,142 @@ structure StaticInference = struct
     (*TODO: no longer necessary*)
     val ts = getFunTyschRes tsUni iUni
     val insmap = iUnify c (iUnify c iExp' iAtexp) iUni in
-    (ts, insmap) end
+    (ts, insmap, ICT.APP_EXP (sExp, sAtexp)) end
 
     | (INF_EXP (exp1, vid, exp2)) => raise StaticInferenceFail "INFIX"
 
     | (TY_EXP (exp, ty)) => let
-    val (tsExp, iExp) = infExp c exp
+    val (tsExp, iExp, sExp) = infExp c exp
     val tsTy = infTy c ty
     val (tsUni, iUni) = tsUnify c tsExp tsTy
     val insmap = iUnify c iExp iUni in
-    (tsUni, insmap) end
+    (tsUni, insmap, sExp) end
 
     | (HAND_EXP (exp, match)) => let
-    val (tsExp, iExp) = infExp c exp
-    val (tsMatch, iMatch) = infMatch c match
+    val (tsExp, iExp, sExp) = infExp c exp
+    val (tsMatch, iMatch, sMatch) = infMatch c match
     val tsExp' = getFunTyschRes tsMatch iMatch
     val (tsUni, iUni) = tsUnify c tsExp tsExp'
     val insmap' = iUnify c (iUnify c iMatch iUni) iExp in
-    (tsUni, insmap') end
+    (tsUni, insmap',  ICT.HAND_EXP (sExp, sMatch)) end
 
     | (RAS_EXP exp) => let
-    val (tsExp, iExp) = infExp c exp
+    val (tsExp, iExp, sExp) = infExp c exp
     val _ = tsUnify c tsExp ISB.exnTysch in
-    (TS.wild, iExp) end
+    (TS.wild, iExp, ICT.RAS_EXP sExp) end
 
-    | (FN_EXP match) => infMatch c match in
-    TIO.println ("infExp " ^ (CST.expToString exp));
-    TIO.println (TS.toString ts);
-    TIO.println (I.toString i);
-    (ts, i) end
+    | (FN_EXP match) => let 
+      val (tsMatch, iMatch, sMatch) = infMatch c match in
+      (tsMatch, iMatch, ICT.FN_EXP sMatch) end in
+    (ts, i, syn) end
 
-  and infMatch   c [mrule] = infMrule c mrule
-    | infMatch   c (mrule :: match) = let
-    val (tsMrule, iMrule) = infMrule c mrule
-    val (tsMatch, iMatch) = infMatch c match
-    val (tsUni, iUni) = tsUnify c tsMrule tsMatch
-    val insmap = iUnify c (iUnify c iMrule iMatch) iUni in
-    (tsUni, insmap) end
-    | infMatch   _ _ = raise StaticInferenceFail "INVALID SYNTAX"
+  and infMatch   c (match) =  let 
+    val (ts, i ,revsyn) = 
+    List.foldl (fn (mrule, (ts, i, syn)) => let
+      val (tsMrule, iMrule, sMrule) = infMrule c mrule
+      val (tsUni, iUni) = tsUnify c tsMrule ts
+      val insmap = iUnify c (iUnify c iMrule i) iUni in
+      (tsUni, insmap, sMrule :: syn) end) 
+      (TS.wild, I.empty, []) match in 
+    (ts, i, List.rev revsyn) end
 
   and infMrule   c (pat, exp) = let
-    val (vePat, tsPat, iPat) = infPat c pat
+    val (vePat, tsPat, iPat, sPat) = infPat c pat
     val newAt = VE.getAsstyset vePat
-    val (tsExp, iExp) = infExp (C.valenvAugment c vePat) exp
+    val (tsExp, iExp, sExp) = infExp (C.valenvAugment c vePat) exp
     val insmap = iUnify c iExp iPat
     val tsFun = TS.getFunTysch tsPat tsExp in
-    (tsFun, insmap) end
+    (tsFun, insmap, (sPat, sExp)) end
 
   and infDec     c (VAL_DEC (tvseq, valbd)) = let
     val c' = C.addTyvarseq c tvseq
-    val (veValbd, iValbd) = infValbd c' valbd
+    val (veValbd, iValbd, sValbd) = infValbd c' valbd
     val closVeValbd = C.closValenv c veValbd
     val env = E.fromValenv closVeValbd in
-    (env, iValbd) end
+    (env, iValbd, ICT.VAL_DEC sValbd) end
 
     | infDec     c (TYP_DEC typbd) = let
     val ve = infTypbd c typbd
     val env = E.fromTyenv ve in
-    (env, I.empty) end
+    (env, I.empty, ICT.SEQ_DEC []) end
 
     (* TODO: equality and check *)
     | infDec     c (DAT_DEC datbd) = let
     val (teIntro, tIntro) = introDatbd c datbd
     val c' = C.tyenvAugment c teIntro
     val c'' = C.tynameenvAugment c' tIntro
-    val (ve, te) = infDatbd c'' datbd in
-    (E.ENV (SE.empty, te, ve), I.empty) end
+    val (ve, te, sDatbd) = infDatbd c'' datbd in
+    TIO.println "TESTESTESTESTESTESTTEWSTEST\n\n\n\n";
+    TIO.println (Int.toString (List.length sDatbd));
+    (E.ENV (SE.empty, te, ve), I.empty, ICT.DAT_DEC sDatbd) end
 
-    | infDec     c (REP_DEC  (tc, ltc)) = let
-    val ts = Option.valOf (C.getTystr c ltc)
-    val te = TE.fromListPair [(tc, ts)] in
-    (E.fromTyenv te, I.empty) end
+    (* no longer supported *)
+    (*| infDec     c (REP_DEC  (tc, ltc)) = let*)
+    (*val ts = Option.valOf (C.getTystr c ltc)*)
+    (*val te = TE.fromListPair [(tc, ts)] in*)
+    (*(E.fromTyenv te, I.empty) end*)
 
-    | infDec     c (ABS_DEC (datbd, dec)) = let
-    val (envDatbd, ieDatbd) = infDec c (DAT_DEC datbd)
-    val c' = C.envAugment c envDatbd
-    val (envDec, ieDec) = infDec c dec
-    val ie = iUnify c ieDatbd ieDec in
-    (envDec, ie) end
+    (*| infDec     c (ABS_DEC (datbd, dec)) = let*)
+    (*val (envDatbd, ieDatbd) = infDec c (DAT_DEC datbd)*)
+    (*val c' = C.envAugment c envDatbd*)
+    (*val (envDec, ieDec) = infDec c dec*)
+    (*val ie = iUnify c ieDatbd ieDec in*)
+    (*(envDec, ie) end*)
 
     | infDec     c (EXC_DEC exbd) = let
-    val ve = infExbd c exbd in
-    (E.fromValenv ve, I.empty) end
+    val (ve, sExbd) = infExbd c exbd in
+    (E.fromValenv ve, I.empty, ICT.EXC_DEC sExbd) end
 
     | infDec     c (LOC_DEC  (dec1, dec2)) = let
-    val (eDec1, ieDec1) = infDec c dec1
+    val (eDec1, ieDec1, sDec1) = infDec c dec1
     val c' = C.envAugment c eDec1
-    val (eDec2, ieDec2) = infDec c' dec2
+    val (eDec2, ieDec2, sDec2) = infDec c' dec2
     val ie = iUnify c ieDec1 ieDec2 in
-    (eDec2, ie) end
+    (eDec2, ie, ICT.LOC_DEC (sDec1, sDec2)) end
 
-    | infDec     c (OPEN_DEC lvidseq) = let
-    fun aux (lvid :: lvidseq) =
-      E.modify (C.getEnv c lvid) (aux lvidseq)
-      | aux [] = E.empty in
-    (aux lvidseq, I.empty) end
+    (*| infDec     c (OPEN_DEC lvidseq) = let*)
+    (*fun aux (lvid :: lvidseq) =*)
+      (*E.modify (C.getEnv c lvid) (aux lvidseq)*)
+      (*| aux [] = E.empty in*)
+    (*(aux lvidseq, I.empty) end*)
 
     | infDec     c (SEQ_DEC  (dec1, dec2)) = let
-    val (eDec1, iDec1) = infDec c dec1
-    val (eDec2, iDec2) = infDec (C.envAugment c eDec1) dec2
+    val (eDec1, iDec1, sDec1) = infDec c dec1
+    val (eDec2, iDec2, sDec2) = infDec (C.envAugment c eDec1) dec2
     val i = iUnify c iDec1 iDec2
-    val e = E.modify eDec1 eDec2 in (e, i) end
+    val e = E.modify eDec1 eDec2 in (e, i, ICT.decCombine sDec1 sDec2) end
 
-    | infDec     c (INF_DEC  _) = raise StaticInferenceFail "INFDEC NOT IMPLEMENTED"
-    | infDec     c (INFR_DEC _) = raise StaticInferenceFail "INFDEC NOT IMPLEMENTED"
-    | infDec     c (NOF_DEC  _) = raise StaticInferenceFail "INFDEC NOT IMPLEMENTED"
+    | infDec     c  _ = raise StaticInferenceFail "NOT IMPLEMENTED"
 
   and infValbd   c (NRE_VALBIND vrow) = infVrow c vrow false
     | infValbd   c (REC_VALBIND vrow) = infVrow c vrow true
 
-  and infVrow c (vrow as ((pat, exp) :: valbd)) recu = if recu then let
-      val vetsiPats = List.map (fn (pat, exp) =>
-        infPat c pat ) vrow
-      val (vePat, iPat) = List.foldl (fn ((vePat, _, iPat), (ve, i)) =>
-        (VE.modify ve vePat, iUnify c i iPat)) (VE.empty, I.empty) vetsiPats
+  and infVrow c vrow recu = if recu then let
+      val vetsisynPats = List.map (fn (pat, exp) => infPat c pat ) vrow
+      val (vePat, iPat) = List.foldl (fn ((vePat, _, iPat, _), (ve, i)) =>
+        (VE.modify ve vePat, iUnify c i iPat)) (VE.empty, I.empty) vetsisynPats
       val recc = C.valenvAugment c vePat
-      val tsiExps = List.map (fn (pat, exp) => infExp recc exp)  vrow
-
-      val iUnis = List.map (fn ((_,tsPat,iPat),(tsExp,iExp)) => let
+      val tsisynExps = List.map (fn (pat, exp) => infExp recc exp)  vrow
+      val (iUnis, sVrow) = ListPair.unzip (
+        List.map (fn ((_,tsPat,iPat,sPat),(tsExp,iExp,sExp)) => let
         val (ts, i1) = tsUnify c tsPat tsExp
-        val i = iUnify c i1 (iUnify c iPat iExp) in i end)
-        (ListPair.zip (vetsiPats, tsiExps))
-      val (ve, i) = List.foldl (fn (((vePat,_,_), iUni), (ve, i)) => let
+        val i = iUnify c i1 (iUnify c iPat iExp) in (i, (sPat, sExp)) end)
+        (ListPair.zip (vetsisynPats, tsisynExps)))
+      val (ve, i) = List.foldl (fn (((vePat,_,_,_), iUni), (ve, i)) => let
         val (vePatIns, iUniRes) = veInstantiateKeys vePat iUni c in
         (VE.modify ve vePatIns, iUnify c i iUniRes) end)
-        (VE.empty, I.empty) (ListPair.zip (vetsiPats, iUnis)) in (ve, i) end
-
+        (VE.empty, I.empty) (ListPair.zip (vetsisynPats, iUnis)) in 
+      (ve, i, ICT.REC_VALBIND sVrow) end
     else let
-      val (ve, i) = List.foldl (fn ((pat, exp), (ve, i)) => let
-        val (vePat, tsPat, iPat) = infPat c pat
-        val (tsExp, iExp) = infExp c exp
+      val (ve, i, revsyn) = List.foldl (fn ((pat, exp), (ve, i, syn)) => let
+        val (vePat, tsPat, iPat, sPat) = infPat c pat
+        val (tsExp, iExp, sExp) = infExp c exp
         val (tsUni, i1) = tsUnify c tsPat tsExp
         val iUni = iUnify c (iUnify c iPat iExp) i1
         val (vePatIns, iRes) = veInstantiateKeys vePat iUni c in
-        (VE.modify ve vePatIns, iUnify c i iRes) end)
-        (VE.empty, I.empty) vrow in
-      (ve, i) end
-    | infVrow c [] _ = (VE.empty, I.empty)
+        (VE.modify ve vePatIns, iUnify c i iRes, (sPat, sExp) :: syn) end)
+        (VE.empty, I.empty, []) vrow in
+      (ve, i, ICT.NRE_VALBIND (List.rev revsyn)) end
 
   and infTypbd   c ((tvs, tc, ty) :: typbd) = let
     val c' = C.addTyvarseq c tvs
@@ -305,7 +299,7 @@ structure StaticInference = struct
 
     | introDatbd c [] = (TE.empty, T.empty)
 
-  and infDatbd c ((dat as (tvs, tc, conbd)) :: datbd) = let
+  and infDatbd c (datbd) = let
 
     fun aux (tvs, tc, conbd) = let
       val c' = C.addTyvarseq c tvs
@@ -314,106 +308,109 @@ structure StaticInference = struct
       val ts = (VartySet.empty, TY.CONTY (vts, tns)) in
       infConbd c' ts conbd end
 
-    val (tfDat, _) = Option.valOf (C.getTystr c ([], tc))
-    val veDat = C.closValenv c (aux dat)
-    val teDat = TE.fromListPair [(tc, (tfDat, veDat))]
-    val (veDatbd, teDatbd) = infDatbd c datbd
-    val ve = VE.modify veDat veDatbd
-    val te = TE.modify teDat teDatbd in (ve, te) end
-    | infDatbd c [] = (VE.empty, TE.empty)
+    val (veDatbd, teDatbd, revsDatbd) = List.foldl (fn 
+      (dat as (tvs, tc, conbd),(ve, te, syn)) => let
+      val (tfDat, _) = Option.valOf (C.getTystr c ([], tc))
+      val (veDatRaw, sDat) = aux dat
+      val veDat = C.closValenv c veDatRaw
+      val teDat = TE.fromListPair [(tc, (tfDat, veDat))]
+      val ve = VE.modify veDat ve
+      val te = TE.modify teDat te in (ve, te, sDat :: syn) end)
+      (VE.empty, TE.empty, []) datbd in 
+      (veDatbd, teDatbd, List.rev revsDatbd) end
 
-  and infConbd c ts ((vid, NONE) :: conbd) = let
-    val ve = VE.fromListPair [(vid, (ts, CON))]
-    val veConbd = infConbd c ts conbd in
-    VE.modify ve veConbd end
-    | infConbd c ts ((vid, SOME ty) :: conbd) = let
-    val tsTy = infTy c ty
-    val tsCon = TS.getFunTysch tsTy ts
-    val ve = VE.fromListPair [(vid, (tsCon, CON))]
-    val veConbd = infConbd c ts conbd in
-    VE.modify ve veConbd end
-    | infConbd c ts [] = VE.empty
+  and infConbd c ts conbd = let
+    val (veConbd, revsConbd) = List.foldl (fn ((vid, tyop), (ve, syn)) => 
+      if isSome tyop then let
+        val ty = valOf tyop
+        val tsTy = infTy c ty
+        val tsCon = TS.getFunTysch tsTy ts
+        val veCon = VE.fromListPair [(vid, (tsCon, CON))] in
+        (VE.modify ve veCon, (vid, true) :: syn) end
+      else let
+        val veCon = VE.fromListPair [(vid, (ts, CON))] in
+        (VE.modify ve veCon, (vid, false) :: syn) end) (VE.empty, []) conbd in
+    (veConbd, List.rev revsConbd) end
 
-  and infExbd c (ex :: exbd) = let
-    fun aux c (VID_EXBIND_ELE (vid, tyOp)) = let
+  and infExbd c exbd = let
+    fun aux (VID_EXBIND_ELE (vid, tyOp)) = let
       val veBase = VE.fromListPair [(vid, (ISB.exnTysch, CON))] in
       if Option.isSome tyOp then let
         val ty = Option.valOf tyOp
         val tsTy = infTy c ty
         val tsExn = TS.getFunTysch tsTy ISB.exnTysch
         val ve = VE.fromListPair [(vid, (tsExn, CON))]in
-        ve end
-      else veBase
+        (ve, (vid, true)) end
+      else (veBase, (vid, false))
       end
-      | aux c (REP_EXBIND_ELE (vid, lvid)) = let
-      val vsLvid = Option.valOf (C.getValstr c lvid)
-      val ve = VE.fromListPair [(vid, vsLvid)] in
-      ve end in
-    VE.modify (aux c ex) (infExbd c exbd) end
+      | aux (REP_EXBIND_ELE (vid, lvid)) = raise Match 
+    
+    val (veExbd, revsExbd) = List.foldl (fn (ex, (ve, syn)) => let 
+        val (veEx, sEx) = aux ex in 
+        (VE.modify ve veEx, sEx :: syn) end)
+      (VE.empty, []) exbd in
+      (veExbd, List.rev revsExbd) end
 
-    | infExbd c [] = VE.empty
-
-  and infAtpat   c WILD_ATPAT = (VE.empty, TS.wild, I.empty)
-    | infAtpat   c (SCON_ATPAT scon) = (VE.empty, infScon scon, I.empty)
-    | infAtpat   c (LVID_ATPAT (lvid as (pre, vid))) = let
-    fun aux () = let
-      val vsOp = C.getValstr c lvid in
-      if Option.isSome vsOp then let
-      val (ts, is) = Option.valOf vsOp in
-      if not (is = VAL) then
-        (VE.empty, ts, I.empty) else
-        raise StaticInferenceFail "LVID VAL IN PATTERN" end
-      else raise StaticInferenceFail "logically impossible return" end in
+  and infAtpat   c WILD_ATPAT = (VE.empty, TS.wild, I.empty, ICT.WILD_ATPAT)
+    | infAtpat   c (SCON_ATPAT scon) = 
+    (VE.empty, infScon scon, I.empty, ICT.SCON_ATPAT scon)
+    | infAtpat   c (LVID_ATPAT (lvid as (pre, vid))) =
     if List.null pre then let
-      val vid = #2 lvid
       val vsVidOp  = C.getValstr c lvid
       val (tsVidOp, isVid) = Option.getOpt (vsVidOp, (ISB.unitTysch, VAL)) in
-      if not (Option.isSome vsVidOp) orelse isVid = VAL then let
+      if isVid = VAL then let
         val newAt = newAssty NONE
         val ts = (VS.empty, TY.ASSTY newAt)
         val ve = VE.fromListPair [(vid, (ts ,VAL))] in
-        (ve, ts, I.fromListPair [(newAt, TS.wild)]) end
-      else aux () end
-    else aux () end
+        (ve, ts, I.fromListPair [(newAt, TS.wild)], ICT.LVID_ATPAT lvid) end
+      else 
+        (VE.empty, tsVidOp, I.empty, ICT.LVID_ATPAT lvid) end
+    else raise StaticInferenceFail "no structure supported"
+
     | infAtpat   c (RCD_ATPAT patrow) = infPatrow c patrow
-    | infAtpat   c (PAT_ATPAT pat) = infPat c pat
+    | infAtpat   c (PAT_ATPAT pat) = let
+      val (a, b, c, sPat) = infPat c pat in
+      (a, b, c, ICT.PAT_ATPAT sPat) end
 
-  and infPatrow c ((lab, pat) :: patrow, isWild) = let
-    val (vePat, tsPat, iPat) = infPat c pat
-    val (vePatrow, tsPatrow, iPatrow) = infPatrow c (patrow, isWild)
-    val ve = VE.unionWith (fn _ =>
-      raise StaticInferenceFail "DUP PAT VID") (vePat, vePatrow)
-    val ts = TS.insertRowTysch tsPatrow lab tsPat
-    val insmap = iUnify c iPat iPatrow in
-    (ve, ts, insmap) end
-    | infPatrow _ ([], isWild) = (VE.empty,
-      if isWild then ISB.wildUnitTysch else ISB.unitTysch, I.empty)
+  and infPatrow c (patrow, isWild) = let
+    val (vePatrow, tsPatrow, iPatrow, revsPatrow) = List.foldl 
+      (fn ((lab, pat), (ve, ts, i, syn)) => let
+        val (vePat, tsPat, iPat, sPat) = infPat c pat
+        val ve = VE.modify ve vePat
+        val ts = TS.insertRowTysch ts lab tsPat
+        val i = iUnify c iPat i in
+        (ve, ts, i, (lab, sPat) :: syn) end)
+      (VE.empty, if isWild then ISB.wildUnitTysch else ISB.unitTysch,
+       I.empty, []) patrow in 
+     (vePatrow, tsPatrow, iPatrow, ICT.RCD_ATPAT (List.rev revsPatrow)) end
 
-  and infPat c pat = let val (ve, ts, i) = (
+  and infPat c pat = let val (ve, ts, i, syn) = (
     case pat of
-      (AT_PAT atpat) => infAtpat c atpat
+      (AT_PAT atpat) => let
+      val (a, b, c, sAtpat) = infAtpat c atpat in
+      (a, b, c, ICT.AT_PAT sAtpat) end
     | (CON_PAT (lvid, atpat)) => let
     val tsOp = C.getValstr c lvid in
     if Option.isSome tsOp then let
       val (tsCon, ieCon) = Option.valOf tsOp in
       if not (ieCon = VAL) then let
-        val (veAtpat, tsAtpat, iAtpat) = infAtpat c atpat
+        val (veAtpat, tsAtpat, iAtpat, sAtpat) = infAtpat c atpat
         val tsFunAtpat = TS.getFunTysch tsAtpat TS.wild
         val (tsFunUni, iFunUni) = tsUnify c tsCon tsFunAtpat
         val insmap = iUnify c iAtpat iFunUni
         val ts = getFunTyschRes tsFunUni insmap in
-        (veAtpat, ts, insmap) end
+        (veAtpat, ts, insmap, ICT.CON_PAT (lvid, sAtpat)) end
       else raise StaticInferenceFail "CONSTRUCTOR IS A VAL" end
     else raise StaticInferenceFail "LVID PAT NOT IN ENV" end
 
     | (INF_PAT _) =>
     raise StaticInferenceFail "INFIX PAT NOT SUPPORTED"
     | (TY_PAT (pat, ty)) => let
-    val (vePat, tsPat, iPat) = infPat c pat
+    val (vePat, tsPat, iPat, sPat) = infPat c pat
     val tsTy = infTy c ty
     val (ts, iUni) = tsUnify c tsPat tsTy
     val insmap = iUnify c iUni iPat in
-    (vePat, ts, insmap) end
+    (vePat, ts, insmap, sPat) end
 
     | (LAY_PAT (vid, tyOp, pat)) => let
     val tsVidOp = C.getValstr c ([], vid)
@@ -421,25 +418,20 @@ structure StaticInference = struct
       handle Option => (TS.wild ,VAL)
     val tsTy = infTy c (Option.valOf tyOp)
       handle Option => TS.wild
-    val (vePat, tsPat, iPat) = infPat c pat
+    val (vePat, tsPat, iPat, sPat) = infPat c pat
     val someVidInVe = VE.find (vePat, vid)
     val (tsUni, iUni) = tsUnify c tsTy tsPat
     val ve = VE.insert (vePat, vid, (tsUni, VAL)) in
     if isVid = VAL andalso not (Option.isSome someVidInVe) then
-      (ve, tsUni, iUni) else
+      (ve, tsUni, iUni, ICT.LAY_PAT (vid, sPat)) else
       raise StaticInferenceFail "LAY PAT GET VID AS NOT VAL OR IN VEPAT" end) in
-    TIO.println ("infpat " ^ (CST.patToString pat));
-    TIO.println (TS.toString ts);
-    TIO.println (I.toString i);
-    (ve, ts, i) end
+    (ve, ts, i, syn) end
 
   and infTy c ty = let val res = (case ty of
     (VAR_TY tyvar) => let
     val isTyvar = C.isTyvar c tyvar in
     if isTyvar then let
       val varty = Option.valOf (C.getVarty c tyvar) in
-      TIO.println (CST.tyToString ty) ;
-      TIO.println (Varty.toString varty) ;
       (VS.empty, TY.VARTY varty) end else
       raise StaticInferenceFail "TYVAR NOT EXPLICITLY DEFINED" end
 
@@ -459,8 +451,6 @@ structure StaticInference = struct
     val tsArg = infTy c argty
     val tsRes = infTy c resty
     val tsFun = TS.getFunTysch tsArg tsRes in tsFun end) in
-    TIO.println ("infty " ^ (CST.tyToString ty));
-    TIO.println (TS.toString res);
     res end
 
   and infTyrow   c ((lab, ty) :: tyrow) = let
@@ -470,6 +460,7 @@ structure StaticInference = struct
     | infTyrow c [] = ISB.unitTysch
 
   (* ASSERT that insmap empty *)
-  fun inference prog = #1 (infDec ISB.context prog)
+  fun inference prog = let 
+    val (env, _, ist) = infDec ISB.context prog in (env, ist) end
 
 end

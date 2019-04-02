@@ -113,6 +113,14 @@ structure CoreSyntaxTree = struct
 
 
   exception FullSyntaxToCoreSyntaxException
+  exception NoRecordPattern
+
+  fun getRcdPat (AT_PAT pat) = getRcdAtpat pat
+    | getRcdPat _ = raise NoRecordPattern
+
+  and getRcdAtpat (PAT_ATPAT atpat) = getRcdPat atpat
+    | getRcdAtpat (RCD_ATPAT rcd) = rcd
+    | getRcdAtpat _ = raise NoRecordPattern
 
   (* WARN: These transformations may cause problem *
    * target at preventing unnecessary construction *)
@@ -371,7 +379,7 @@ structure CoreSyntaxTree = struct
   and lstridseqToString lstridseq = (LA.toString lstridseq LSID.toString " ")
   and vidseqToString vidseq = LA.toString vidseq vidToString " "
   and vroweleToString (pat, exp) = (patToString pat) ^ " = " ^ (expToString exp)
-  and vrowToString vrow = LA.toString vrow vroweleToString "AND"
+  and vrowToString vrow = LA.toString vrow vroweleToString " AND\n"
   and tyseqToString tyseq =
     (LA.toString tyseq tyToString " ") ^
     (if List.null tyseq then "" else " ")

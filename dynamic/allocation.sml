@@ -150,7 +150,9 @@ structure NewAllocation = struct
     val locmap = ref ((IMAP.map (fn _ => LMAP.empty) prog)
     : (location LMAP.map) IMAP.map)
     val baslm = LMAP.fromListPair ([((~1,~1), NUL)] @
-             (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD f))
+             (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD f)
+                         | (Value.CON ((~1, f), t)) => ((~1, f), FLD f)
+                         | (Value.EXC ((~1, f), t)) => ((~1, f), FLD f))
              InitialSpace.basValueList))
     val _ = locmap := IMAP.insert (! locmap, ~1, baslm)
 
@@ -180,8 +182,6 @@ structure NewAllocation = struct
       locmap := newlm end end
 
   fun genClos (cid, clos) = let
-
-    fun addclm c = addlm c
 
   fun genMeth meth = let
 

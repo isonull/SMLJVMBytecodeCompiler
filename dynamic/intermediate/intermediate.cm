@@ -5,6 +5,7 @@ Group is
 ./inter-instruction.sml
 ./inter-method.sml
 ../../utils/utils.cm
+../../static/static.cm
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm

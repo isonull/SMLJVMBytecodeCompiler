@@ -57,7 +57,6 @@ structure TypeScheme = struct
   fun instantiate ts tsis = let
     val tss = List.map (fn (a, ts) => ts) tsis
     val tstss' = disjointList (ts :: tss)
-
     (* disjoint the insmap and the input type scheme *)
     val (vs', t') = hd tstss'
     val tss' = tl tstss'

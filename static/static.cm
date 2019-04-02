@@ -5,6 +5,7 @@ Group is
 ./static-inference.sml
 ./unify.sml
 ../frontend/utils/utils.cm
+./intermediate-syntax-tree.sml
 
 $/basis.cm
 $SMLNJ-LIB/Util/smlnj-lib.cm
