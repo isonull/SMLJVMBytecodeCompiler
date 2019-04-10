@@ -1,18 +1,5 @@
 structure Allocation = struct
 
-  structure LocationKey = struct
-
-    type ord_key = (int * int)
-
-    fun compare ((x1,x2), (y1,y2)) = let
-      val o1 = Int.compare (x1, y1) in
-      if o1 = EQUAL then Int.compare (x2, y2) else o1 end
-
-  end
-
-  structure LocationBinaryMap = OrdMapAuxFn (BinaryMapFn (LocationKey))
-  structure LocationBinarySet = LocationBinaryMap.KeySet
-
   structure LSET = LocationBinarySet
   structure LMAP = LocationBinaryMap
 
@@ -54,8 +41,8 @@ structure Allocation = struct
       then [] else [loc]
 
     in (case clos of
-        TOP (_, meth) => refedLocMeth meth
-      | FCN (prev, _, meth) => refedLocMeth meth) end
+        TOP (_, _, meth) => refedLocMeth meth
+      | FCN (prev, _, _, meth) => refedLocMeth meth) end
 
   (* generate location map and closure init method *)
 
@@ -89,8 +76,8 @@ structure Allocation = struct
           locmapref := LMAP.insert (! locmapref, loc, rst) end
 
       and genLocs ls = (List.map genLoc ls; ()) in
-        case clos of TOP (_, meth)    => (locct := 0; genMeth meth)
-                   | FCN (_, _, meth) => (locct := 1; genMeth meth) end in
+        case clos of TOP (_, _, meth)    => (locct := 0; genMeth meth)
+                   | FCN (_, _, _, meth) => (locct := 1; genMeth meth) end in
 
     IMAP.map genClos prog;
 
@@ -103,24 +90,11 @@ structure Allocation = struct
     | lc2s NUL = "NUL"
     | lc2s (BAS l) = "BAS " ^ (i2s l)
 
-  fun toString locmap = LMAP.toString locmap l2s lc2s " " "\n"
+  fun toString locmap = LMAP.toString locmap
 
 end
 
 structure NewAllocation = struct
-
-  structure LocationKey = struct
-
-    type ord_key = (int * int)
-
-    fun compare ((x1,x2), (y1,y2)) = let
-      val o1 = Int.compare (x1, y1) in
-      if o1 = EQUAL then Int.compare (x2, y2) else o1 end
-
-  end
-
-  structure LocationBinaryMap = OrdMapAuxFn (BinaryMapFn (LocationKey))
-  structure LocationBinarySet = LocationBinaryMap.KeySet
 
   structure LSET = LocationBinarySet
   structure LMAP = LocationBinaryMap
@@ -161,11 +135,14 @@ structure NewAllocation = struct
     val fldctmap = IMAP.map (fn _ => ICT.newi ~1) prog
 
     fun locnext i = (ICT.next o valOf) (IMAP.find (locctmap, i))
+      handle Option => (TIO.println "locnext"; raise Option)
     fun fldnext i = (ICT.next o valOf) (IMAP.find (fldctmap, i))
+      handle Option => (TIO.println "fldnext"; raise Option)
 
     fun addlm cid (loc as (c, l)) = let
       val lm = ! locmap
       val clm = valOf (IMAP.find (lm, cid))
+        handle Option => (TIO.println "addlm-clm"; raise Option)
       val psop = LMAP.find (clm, loc) in
       if isSome psop then () else let
         val p =
@@ -189,13 +166,17 @@ structure NewAllocation = struct
 
     (* genMeth *)
     List.map (fn (c, l) => let
-      val path = valOf (IP.path prog cid c) in
+      val path = valOf (IP.path prog cid c)
+        handle Option => (TIO.println "genMeth-path"; 
+        TIO.println (Int.toString cid);
+        TIO.println (Int.toString c);
+        raise Option) in
       List.map (fn cid => addlm cid (c, l)) path end) locs end in
 
     (* genClos *)
     genMeth (case clos of
-                  TOP (_, m) => m
-                | FCN (_, _, m) => m) end in
+                  TOP (_, _, m) => m
+                | FCN (_, _, _, m) => m) end in
     (* genProg *)
     IMAP.mapi (fn p => genClos p) prog;
     ! locmap end
@@ -208,7 +189,7 @@ structure NewAllocation = struct
     | lc2s (BAS l) = "BAS " ^ (i2s l)
 
   fun toString m = let
-    fun aux locmap = LMAP.toString locmap l2s lc2s " " "\n" in
+    fun aux locmap = LMAP.toString locmap in
     IMAP.toString m i2s aux " " "\n\n\n" end
 
 end

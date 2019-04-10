@@ -5,7 +5,7 @@ structure NewCodeGeneration = struct
   structure IP = InterProgram
   structure IC = InterClosure
   structure ICT = IntCounter
-  structure LMAP = NewAllocation.LocationBinaryMap
+  structure LMAP = LocationBinaryMap
   structure JD = Descriptor
   structure JI = Instruction
   structure JC = Class
@@ -69,9 +69,11 @@ structure NewCodeGeneration = struct
 
   fun funInitDesc id = let val narg = (length o valOf) (IMAP.find (gfldmap, id)) in
     M_DESC ((List.tabulate (narg, (fn _ => objTyp))), V) end
+    handle Option => (print "funInitDesc"; raise Option)
 
   (* construct a closure t from closure s *)
-  fun getFlds c = valOf (IMAP.find (gfldmap, c)) handle Option => (print "1"; [])
+  fun getFlds c = valOf (IMAP.find (gfldmap, c)) 
+    handle Option => (print "GETFLD"; raise Option)
 
   (*val locmap = Allocation.genProg prog*)
   fun closPath x y = IP.path prog x y
@@ -84,9 +86,11 @@ structure NewCodeGeneration = struct
   fun getExfloc t f = let
     val frevmap = valOf (IMAP.find (gfrevmap, t))
     val loc = valOf (IMAP.find (frevmap, f)) in loc end
+    handle Option => (print "GetExfloc"; raise Option)
+
 
   val locmap = (Option.valOf (IMAP.find (glocmap, closid))) : (location
-  LMAP.map) handle Option => (print "2"; LMAP.empty)
+  LMAP.map) handle Option => (print "locmap"; raise Option)
 
   fun path2clos x = closPath closid x
   val thisCname = id2cname closid
@@ -102,7 +106,7 @@ structure NewCodeGeneration = struct
 
   val () = (case clos of
                 TOP _ => ()
-              | FCN (previd, _, _) =>
+              | FCN (previd, _, _, _) =>
                   addField ([JF.ACC_PUBLIC], "prev", prevDesc previd))
 
   val previd = IC.prevClosid clos
@@ -147,8 +151,9 @@ structure NewCodeGeneration = struct
     addField ([JF.ACC_PUBLIC], id2fname f, objectDesc);
     IMAP.insert (fcmap, f, cid) end) (IMAP.empty) (getFlds closid)
 
-  fun getFldCid f = valOf (IMAP.find (fld2cidmap, f)) handle Option => (print
-    (Int.toString f) ; print ("--" ^ (Int.toString closid)); print "\n"; 0)
+  fun getFldCid f = valOf (IMAP.find (fld2cidmap, f)) 
+    handle Option => (print (Int.toString f) ; 
+    print ("--" ^ (Int.toString closid)); print "\n"; 0)
 
 
   (* move local variable or field to/from stack top *)
@@ -198,13 +203,14 @@ structure NewCodeGeneration = struct
         fun gen (MOV    (l1, l2))       =
           CODE (stk2loc l1 (loc2stk l2))
 
-          | gen (NEWFCN (l, f))         = let
+          | gen (NEWFCN (l, f))         = (let
           val fCid = funClsCid f
           val init = funInitCid f
           val tlocmap = Option.valOf (IMAP.find (glocmap, f))
           val loadparas = List.foldl (fn (fid, code) =>
             code @ (loc2stk (getExfloc f fid)) ) [] (getFlds f) in
           CODE (stk2loc l ([NEW fCid, DUP] @ loadparas @ [INVOKESPECIAL init])) end
+          handle Option => (TIO.println "gen NEWFCN"; raise Option))
 
           | gen (NEWSCN (l, s))         = (case s of
               INT_SCON i => CODE
@@ -292,22 +298,24 @@ structure NewCodeGeneration = struct
     (* gen *)
     val (codeop, newoff) = genInst i in
       if Option.isSome codeop then
-      (Option.valOf codeop) @ (gen is newoff) else let
+      (Option.valOf codeop) @ (gen is newoff) else (let
       val rest = gen is newoff
       val (codeop, _) = genInst i in
-      (Option.valOf codeop) @ rest end end end
+      (Option.valOf codeop) @ rest end
+      handle Option => (TIO.println "gen LAST"; raise Option) )
+    end end
 
   (* genCode *)
   in gen meth 0 end
 
   (* genClos *)
   in (case clos of
-    TOP (_, meth) => let
+    TOP (_, _, meth) => let
     val code = [ALOAD_0, INVOKESPECIAL objInitCid] @ (genCode meth)
     val codeattr = JC.newAttr class (CODE code) in
     JC.addMethod class ([JM.ACC_PUBLIC], "<init>", initDesc, codeattr);
     class end
-  | FCN (prev, _, meth) => let
+  | FCN (prev, _, _, meth) => let
     val prevCid = (prevCid closid prev)
     val initcodeattr = JC.newAttr class (CODE
       ([ALOAD_0, INVOKESPECIAL objInitCid] @ initCode @ [RETURN]))

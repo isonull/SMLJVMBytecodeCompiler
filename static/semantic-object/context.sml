@@ -15,6 +15,8 @@ structure Context = struct
 
   val empty = (T.empty, U.empty, E.empty)
 
+  fun groundTysch (t, u, e) ts = E.groundTysch e ts
+
   fun getTyname (t, u, e) ltycon = T.find (t, ltycon)
 
   fun getVarty (t, u, e) tyvar = U.find (u, tyvar)

@@ -294,7 +294,7 @@ structure CoreSyntaxTree = struct
     | atexpToString (LVID_ATEXP lvid) = LVID.toString lvid
     | atexpToString (RCD_ATEXP exprow) = "{" ^ exprowToString exprow ^ "}"
     | atexpToString (LET_ATEXP (dec, exp)) =
-    "LET " ^ (decToString dec) ^ "IN " ^ (expToString exp) ^ "END"
+    "LET\n" ^ (decToString dec) ^ "\n IN \n" ^ (expToString exp) ^ "\n END"
     | atexpToString (EXP_ATEXP exp) = expToString exp
 
   and expToString (AT_EXP atexp) = atexpToString atexp

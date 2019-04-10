@@ -93,38 +93,32 @@ structure Unify = struct
         )
 
     fun basaux (VARTY v1) (VARTY v2) =
-      (v2vAux (VARTY v1) (VARTY v2)) @ s
-      (*if v1 = v2 then s else*)
-        (*if VS.member (! cs, v1)*)
-        (*then (VARTY v1, VARTY v2) :: s else*)
-          (*if VS.member (! cs, v2)*)
-          (*then (VARTY v2, VARTY v1) :: s*)
-          (*else raise TY.UnifyFail "OPEN VARTY PAIR"*)
+      ((v2vAux (VARTY v1) (VARTY v2)) @ s, VARTY v1)
 
       | basaux (VARTY v) (ASSTY a) =
       if VS.member (! cs, v)
-      then (VARTY v, ASSTY a) :: s
-      else (ASSTY a, VARTY v) :: s
+      then ((VARTY v, ASSTY a) :: s, ASSTY a)
+      else ((ASSTY a, VARTY v) :: s, ASSTY a)
 
       | basaux (ASSTY a) (VARTY v) =
       basaux (VARTY v) (ASSTY a)
 
       | basaux (ASSTY a1) (ASSTY a2) =
-      if a1 = a2 then s else 
-        if a1 < a2 then (ASSTY a1, ASSTY a2) :: s
-        else (ASSTY a2, ASSTY a1) :: s
+      if a1 = a2 then (s, ASSTY a1) else 
+        if a1 < a2 then ((ASSTY a1, ASSTY a2) :: s, ASSTY a2)
+        else ((ASSTY a2, ASSTY a1) :: s, ASSTY a1)
 
       | basaux (VARTY v) ty =
       if TY.ctva ty (VARTY v)
       then raise TY.UnifyFail "CIRCULAR VARTY" else
         if VS.member (! cs, v)
-        then (VARTY v, ty) :: s
+        then ((VARTY v, ty) :: s, ty)
         else raise TY.UnifyFail "OPEN VARTY"
 
       | basaux (ASSTY a) ty =
       if TY.ctva ty (ASSTY a)
       then raise TY.UnifyFail "CIRCULAR ASSTY"
-      else (ASSTY a, ty) :: s
+      else ((ASSTY a, ty) :: s, ASSTY a)
 
       | basaux ty (VARTY v) =
       basaux (VARTY v) ty
@@ -137,28 +131,32 @@ structure Unify = struct
 
   and aux t1 t2 s = if isBas t1 t2 then bas t1 t2 s else (case (t1, t2) of
       (FUNTY (a1, r1), FUNTY (a2, r2)) => let
-      val s' = aux a1 a2 s
-      val s'' = aux r1 r2 s'
-    in s'' @ (s' @ s) end
+      val (s' , t1) = aux a1 a2 s
+      val (s'', t2) = aux r1 r2 s'
+    in (s'' @ (s' @ s), FUNTY (t1, t2)) end
 
     | (ROWTY (r1, w1), ROWTY (r2, w2)) => let
       val ((r1, w1), (r2, w2)) = matchWildRowty (r1, w1) (r2, w2) in
     if LM.numItems r1 = LM.numItems r2
-    then LM.foldli (fn (k, t1, s) => let
-        val t2 = Option.valOf (LM.find (r2, k))
-          handle Option.Option => ((
-          TIO.println "UNIFY FAILED BETWEEN";
-          TIO.println (TY.toString (ROWTY (r1, w1)));
-          TIO.println (TY.toString (ROWTY (r2, w2))));
-          raise TY.UnifyFail "LAB NOT FOUND")
-      in (aux t1 t2 s) @ s end) s r1
+    then let val (s, r) = LM.foldli (fn (k, t1, (s, r)) => let
+      val t2 = Option.valOf (LM.find (r2, k))
+        handle Option.Option => ((
+        TIO.println "UNIFY FAILED BETWEEN";
+        TIO.println (TY.toString (ROWTY (r1, w1)));
+        TIO.println (TY.toString (ROWTY (r2, w2))));
+        raise TY.UnifyFail "LAB NOT FOUND")
+      val (saux, t) = (aux t1 t2 s) in 
+      (saux @ s, LM.insert (r, k, t)) end) (s, LM.empty) r1 in
+      (s, ROWTY (r, w1 andalso w2)) end
     else raise TY.UnifyFail "ROWTY DIFFERENCE SIZE" end
 
     | (CONTY (ts1, n1), CONTY (ts2, n2)) =>
     if TN.equal n1 n2 then let
-      val tp = ListPair.zip (ts1, ts2) in
-      List.foldl (fn ((t1, t2), s) =>
-        (aux t1 t2 s) @ s) s tp end
+      val tp = ListPair.zip (ts1, ts2)
+      val (s, ts) = List.foldl (fn ((t1, t2), (s, ts)) => let
+        val (saux, t) = (aux t1 t2 s) in 
+        (saux @ s, ts @ [t]) end) (s, []) tp in 
+      (s, CONTY (ts, n1)) end
     else let
       val t1op = expConty (ts1, n1)
       val t2op = expConty (ts2, n2) in
@@ -171,8 +169,9 @@ structure Unify = struct
       handle Option => raise TY.UnifyFail
         "BAS CONTY AND OTHER TY DOES NOT UNIFY")
 
-    | (t1, t2 as (CONTY _)) => aux t2 t1 s) in
-    (List.rev (aux t1 t2 []), ! cs) end
+    | (t1, t2 as (CONTY _)) => aux t2 t1 s) in let
+    val (s, t) = aux t1 t2 [] in
+    (List.rev s, ! cs, t) end end
 
   (* generate type instantiation from substitution sequence*)
   (* useless in this case, we do not want to instantiate until the vrow retire *)
@@ -191,11 +190,11 @@ structure Unify = struct
     ^ (TY.toString b)) "||"
 
   fun unifyTy tm cs t1 t2 = let
-    val (subseq, newcs) = gs tm cs t1 t2
+    val (subseq, newcs, newty) = gs tm cs t1 t2
     val tsubseq = truncateSubseq subseq
     val insseq = TY.insseqFromSubseq tsubseq
     val bndseq = TY.bndseqFromSubseq tsubseq
-    val t = TY.bind t1 bndseq
+    val t = TY.bind newty bndseq
   in (t, insseq, newcs) end
   handle TY.UnifyFail s => (
     TIO.println s;

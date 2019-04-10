@@ -35,7 +35,8 @@ structure InterInference = struct
   val toLoc = Value.toLoc
 
   datatype closty = F | T
-  type clostk = (closty * int * int ref) list
+  (* closure type, id, maxloc, nexts*)
+  type clostk = (closty * int * (int ref) * ((int list) ref)) list
 
   val labref = ref 0
   val clostkref  = ref ([] : clostk)
@@ -59,28 +60,33 @@ structure InterInference = struct
   fun newlab () = (inc labref; ! labref)
 
   fun newloc () = let
-    val (_, closid, locref) = hd (! clostkref) in
+    val (_, closid, locref, _) = hd (! clostkref) in
     inc locref; (closid, ! locref) end
 
   fun popclos () = let
-    val (ty, closid, locref) = hd (! clostkref) in
+    val (ty, closid, locref, childrenref) = hd (! clostkref) in
     clostkref := tl (! clostkref);
-    (ty, closid, ! locref) end
+    if not (List.null (! clostkref)) then
+    let val childrenref = #4 (hd (! clostkref)) in 
+      childrenref := closid :: (! childrenref) end else ();
+    (ty, closid, ! locref, ! childrenref) end
+
+  fun topCid () = let
+    val (ty, closid, locref, childrenref) = hd (! clostkref) in closid end
 
   fun pushclos entry = clostkref := entry :: (! clostkref)
 
   fun newclos ty = let
-    val newclos = (ty, newclosid (), ref 0) in
+    val newclos = (ty, newclosid (), ref 0, ref []) in
     (clostkref := newclos :: (! clostkref); ! closidref) end
 
   fun popAdd code = let
-    val (ty, closid, locmax) = popclos ()
-    val locset = IntBinarySetAux.tabulate ((locmax + 1), (fn x => x))
+    val (ty, closid, locmax, children) = popclos ()
     val newprog  = case ty of
       F =>  IP.insert ((! progref), closid,
-        IC.FCN ((#2 o hd) (! clostkref), locset, code))
+        IC.FCN ((#2 o hd) (! clostkref), children, locmax, code))
     | T =>  IP.insert ((! progref), closid,
-        IC.TOP (locset, code)) in
+        IC.TOP (children,locmax, code)) in
     progref := newprog end
 
   fun init () = (
@@ -104,10 +110,10 @@ structure InterInference = struct
       TIO.println (#2 lvid); raise Option) in
     ([], toLoc value) end
 
-    | infAtexp spa (EXP_ATEXP exp) = infExp spa exp
+    | infAtexp spa (EXP_ATEXP (exp, ts)) = infExp spa exp
 
     | infAtexp spa (RCD_ATEXP exprow) = let
-    val (code, data) = List.foldl (fn ((lab, exp), (code, loclabls)) => let
+    val (code, data) = List.foldl (fn ((lab, (exp, ts)), (code, loclabls)) => let
       val (expCode, expLoc) = infExp spa exp in
       (code @ expCode, loclabls @ [(expLoc, lab)]) end)
       ([],[]) exprow
@@ -115,15 +121,21 @@ structure InterInference = struct
     val nloc = newloc ()
     val code = code @ [NEWRCD (nloc, data)] in (code, nloc) end
 
-    | infAtexp spa (LET_ATEXP (dec, exp)) = let
+    | infAtexp spa (LET_ATEXP (dec, (exp, ts))) = let
     val (decCode, decSpa) = infDec spa dec
     val modspa = S.modify spa decSpa
     val (expCode, locCode) = infExp modspa exp
     val code = decCode @ expCode in (code, locCode) end
 
-  and infExp spa (AT_EXP atexp) = infAtexp spa atexp
+  and infExp spa (AT_EXP (atexp, ts)) = infAtexp spa atexp
 
-    | infExp spa (APP_EXP (exp, atexp)) = let
+    | infExp spa (APP_EXP ((FN_EXP match, ts), (atexp, ts'))) = let
+    val (codeAtexp, locAtexp) = infAtexp spa atexp
+    val (codeApp, locApp) = infAppMatch spa match locAtexp
+    val code = codeAtexp @ codeApp in
+    (code, locApp) end
+
+    | infExp spa (APP_EXP ((exp, ts), (atexp, ts'))) = let
     val (codeAtexp, locAtexp) = infAtexp spa atexp
     val (codeExp, locExp) = infExp spa exp
     val loc = newloc ()
@@ -137,24 +149,39 @@ structure InterInference = struct
       val nloc = newloc () in
       ([NEWFCN (nloc, fid)], nloc) end
 
-    (*| infExp spa (HAND_EXP (exp, match)) = let*)
+    (*| infExp spa (HAND_EXP ((exp, ts), match)) = let*)
       (*val (codeExp, locExp) = infExp spa exp in*)
       (*(codeExp, locExp) end*)
 
+  (* for val rec *)
   and infFn spa (FN_EXP match) closidop = let
     val fid = if isSome closidop then
-        (pushclos (F, valOf closidop, ref 0); valOf closidop) else newclos F
+        (pushclos (F, valOf closidop, ref 0, ref []); valOf closidop) else newclos F
     val code = infMatch spa match
     val _ = popAdd code
     val nloc = newloc () in
     ([NEWFCN (nloc, fid)], nloc) end
 
-  and infMrule spa (pat, exp) = let
+  and infMrule spa ((pat, ts), (exp, ts')) = let
     val nextlab = newlab ()
-    val (patCode, patVs) = infPat spa (! closidref, ~1) nextlab pat
+    val (patCode, patVs) = infPat spa (topCid (), ~1) nextlab pat
     val newspa = S.modifyValspa spa patVs
     val (expCode, expLoc) = infExp newspa exp in
     (patCode @ expCode @ [RETURN expLoc, LABEL (nextlab)]) end
+
+  (* for (fn ...) e *)
+
+  and infAppMatch spa match inloc = let
+    val retlab = newlab ()
+    val outloc = newloc ()
+    val code = List.foldl (fn (((pat, ts), (exp, ts')), code) => let
+      val nextlab = newlab ()
+      val (patCode, patVs) = infPat spa inloc nextlab pat
+      val newspa = S.modifyValspa spa patVs
+      val (expCode, expLoc) = infExp newspa exp 
+      val expMrule = patCode @ expCode @ [MOV (outloc, expLoc), GOTO retlab] in
+      code @ expMrule @ [LABEL nextlab] end) [] match in
+    (code @ [RAISE IS.matchLoc, LABEL retlab], outloc) end
 
   and infMatch spa match = let
     val front = ListAux.front match
@@ -194,13 +221,14 @@ structure InterInference = struct
   and infValbind spa lab (NRE_VALBIND (vrow)) =
     infVrow spa lab vrow
     | infValbind spa lab (REC_VALBIND (vrow)) = let
-    val vidcidpl = List.map (fn (AT_PAT (LVID_ATPAT ([], vid)), exp) =>
+    val vidcidpl = List.map (
+    fn ((AT_PAT ((LVID_ATPAT ([], vid), ts)),ts'), (exp, ts'')) =>
       (vid, newclosid ())
       | _ => raise Match) vrow
     val recvs = VS.fromListPair (List.map (fn (vid, cid)=> (vid, VAL (cid, 0))) vidcidpl)
     val recspa = S.modifyValspa spa recvs
     val cidvrow = ListPair.zip (vidcidpl, vrow)
-    val (vs, code) = List.foldl (fn (((vid, cid),(pat, exp)), (vs, code)) => let
+    val (vs, code) = List.foldl (fn (((vid, cid),((pat, ts), (exp, ts'))), (vs, code)) => let
       val (codeExp, locExp) = infFn recspa exp (SOME cid)
       val vsPat = VS.fromListPair [(vid, VAL (locExp))]
       val nvs = VS.modify vs vsPat
@@ -238,7 +266,7 @@ structure InterInference = struct
       (code, vs, cid + 1) end) ([], VS.empty, 0) conbd in (code, vs) end
 
   and infVrow spa lab vrow = let
-    val (vs, code) = List.foldl (fn ((pat, exp), (vs, code)) => let
+    val (vs, code) = List.foldl (fn (((pat, ts), (exp, ts')), (vs, code)) => let
       val (codeExp, locExp) = infExp spa exp
       val (codePat, vsPat) = infPat spa locExp lab pat
       val nvs = VS.modify vs vsPat
@@ -255,15 +283,15 @@ structure InterInference = struct
       | CON (_, tag) =>
         ([MATTAG ((~1, ~1), loc, tag, lab)], VS.empty) end
 
-    | infAtpat spa loc lab (PAT_ATPAT pat) = infPat spa loc lab pat
+    | infAtpat spa loc lab (PAT_ATPAT (pat, ts)) = infPat spa loc lab pat
 
     | infAtpat spa loc lab (WILD_ATPAT) = ([], VS.empty)
 
     | infAtpat spa loc lab (RCD_ATPAT patrow) = let
-    val (code, vs) = List.foldl (fn ((l, pat), (code, vs)) => let
+    val (code, vs) = List.foldl (fn ((l, (pat, ts)), (code, vs)) => let
       val patLoc = newloc ()
       val (patCode, patVs) = infPat spa patLoc lab pat
-      val labOrdMap = getLabOrdMap (List.map (fn (lab, pat) => lab) patrow)
+      val labOrdMap = getLabOrdMap (List.map (fn (lab, (pat, ts)) => lab) patrow)
       val code = code @
         [MATRCD (patLoc, loc, valOf (LM.find (labOrdMap, l)))] @ patCode
       val vs = VS.modify vs patVs in (code, vs) end)
@@ -271,9 +299,9 @@ structure InterInference = struct
     | infAtpat spa loc lab (SCON_ATPAT scon) = case scon of
       INT_SCON i => ([MATINT (loc, i, lab)], VS.empty)
 
-  and infPat spa loc lab (AT_PAT atpat) = infAtpat spa loc lab atpat
+  and infPat spa loc lab (AT_PAT (atpat, ts)) = infAtpat spa loc lab atpat
 
-    | infPat spa loc lab (CON_PAT (lvid, atpat)) = let
+    | infPat spa loc lab (CON_PAT ((lvid, ts'), (atpat, ts))) = let
     val atpatLoc = newloc ()
     val (atpatCode, atpatVs) = infAtpat spa atpatLoc lab atpat
     val (CON (_, cid)) = valOf (S.getValstr spa lvid)
@@ -285,7 +313,7 @@ structure InterInference = struct
     val () = init ()
     val (code, spa) = infDec InitialSpace.space prog
     val () = popAdd (code @ [EXIT]) in
-    ! progref end
+    (! progref, ! labref) end
 
 end
 

@@ -54,7 +54,8 @@ structure TypeScheme = struct
       | aux [] _ = [] in
     aux ts [] end
 
-  fun instantiate ts tsis = let
+  fun instantiate ts imap = let
+    val tsis = IM.listItemsi imap
     val tss = List.map (fn (a, ts) => ts) tsis
     val tstss' = disjointList (ts :: tss)
     (* disjoint the insmap and the input type scheme *)

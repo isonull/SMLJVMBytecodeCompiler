@@ -10,6 +10,8 @@ structure Environment = struct
   datatype env = datatype SE.env
 
   val empty = ENV (SE.empty, TE.empty, VE.empty)
+  
+  fun groundTysch (ENV (se, te, ve)) ts = TE.groundTysch te ts
 
   fun instantiate (ENV (se, te, ve)) is = ENV (se, te, VE.instantiate ve is)
 

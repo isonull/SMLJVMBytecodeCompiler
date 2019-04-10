@@ -32,10 +32,10 @@ open FullSyntaxTree
    EOP |
 
    INTSCON of int |
-   REALSCON of real |
-   WORDSCON of word |
-   CHARSCON of char |
-   STRSCON of string|
+   REALSCON of string |
+   WORDSCON of string |
+   CHARSCON of string |
+   STRSCON  of string |
 
    ID of string |
    IDPRE of string |

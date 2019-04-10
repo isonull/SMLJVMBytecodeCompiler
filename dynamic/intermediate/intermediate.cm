@@ -4,6 +4,7 @@ Group is
 ./inter-program.sml
 ./inter-instruction.sml
 ./inter-method.sml
+../location.sml
 ../../utils/utils.cm
 ../../static/static.cm
 

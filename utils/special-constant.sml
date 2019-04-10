@@ -2,9 +2,9 @@ structure SpecialConstant = struct
 
   datatype scon =
     INT_SCON  of int |
-    REAL_SCON of real |
-    WORD_SCON of word |
-    CHAR_SCON of char |
+    REAL_SCON of string|
+    WORD_SCON of string|
+    CHAR_SCON of string|
     STR_SCON  of string
 
   exception SconLexError
@@ -84,8 +84,8 @@ structure SpecialConstant = struct
   fun stringLex s = substring (s, 1, (size s) - 2)
 
   and toString (INT_SCON i) = Int.toString i
-    | toString (REAL_SCON r) = Real.toString r
-    | toString (WORD_SCON w) = Word.toString w
-    | toString (CHAR_SCON c) = Char.toString c
-    | toString (STR_SCON s) = "\"" ^ s ^ "\""
+    | toString (REAL_SCON r) = Real.toString 0.0
+    | toString (WORD_SCON w) = Word.toString 0wx0
+    | toString (CHAR_SCON c) = Char.toString #"a"
+    | toString (STR_SCON s) = "\"" ^ "\""
 end

@@ -140,6 +140,7 @@ structure FullSyntaxTree = struct
   val unitPat = AT_PAT(UNIT_ATPAT)
   fun expByAppexp e = INF_EXP (APP_INFEXP e)
   fun expByAtexp e = expByAppexp [e]
+  fun atexpByAppexp e = EXP_ATEXP (expByAppexp e)
 
   local val count = ref 0 in
   fun getUniqueId () = let
@@ -205,11 +206,12 @@ structure FullSyntaxTree = struct
   (* TODO new id*)
   fun whilExpToLetAtexp (WHIL_EXP (e, e')) = let
     val id = getUniqueId ()
-    val brTrue = expByAtexp (SEQ_ATEXP [e', unitExp])
+    val brTrue = expByAtexp (SEQ_ATEXP [e', 
+      expByAppexp ([UNIT_ATEXP, LVID_ATEXP (lidById id)])])
     val ifExp = IF_EXP (e, brTrue, unitExp)
     val fnExp = FN_EXP [(unitPat, ifExp)]
     val valbind = REC_VALBIND [(patById id, fnExp)]
-    val letBody = expByAppexp [LVID_ATEXP (lidById id), UNIT_ATEXP]
+    val letBody = expByAppexp [UNIT_ATEXP, LVID_ATEXP (lidById id)]
   in
     LET_ATEXP (VAL_DEC ([],valbind), [letBody])
   end

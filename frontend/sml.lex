@@ -100,7 +100,7 @@ lid = {id}(\.{id})*;
 {iddot}  => (Tokens.IDPRE (LexUtils.iddotLex yytext,!pos,!pos));
 
 {int}    => (Tokens.INTSCON  (LexUtils.intLex yytext,!pos,!pos));
-{string} => (Tokens.STRSCON  (LexUtils.stringLex yytext,!pos,!pos));
-{char}   => (Tokens.CHARSCON (LexUtils.charLex yytext,!pos,!pos));
-{float}   => (Tokens.REALSCON (LexUtils.floatLex yytext,!pos,!pos));
-{word}   => (Tokens.WORDSCON (LexUtils.wordLex yytext,!pos,!pos));
+{string} => (Tokens.STRSCON  ("",!pos,!pos));
+{char}   => (Tokens.CHARSCON ("",!pos,!pos));
+{float}   => (Tokens.REALSCON ("",!pos,!pos));
+{word}   => (Tokens.WORDSCON ("",!pos,!pos));

@@ -42,4 +42,3 @@ functor OrdSetAuxFn (Set : ORD_SET) = struct
     aux (listItems s1) s2 end
 
 end
-

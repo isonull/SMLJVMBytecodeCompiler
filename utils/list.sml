@@ -44,6 +44,11 @@ structure ListAux = struct
 
   fun findIndex xs y = findIndexFrom xs y 0
 
+  fun countElement l e = let
+    fun aux (x :: xs) e c = aux xs e (c + (if e = x then 1 else 0))
+      | aux [] e c = c in
+    aux l e 0 end
+
   fun member (l :: ls, i) = l = i orelse member (ls, i)
     | member ([], _) = false
 
@@ -52,6 +57,20 @@ structure ListAux = struct
         rmDup is else 
         i :: (rmDup is)
     
+  fun uniqueElements ls = let 
+    val dups = ref []
+    fun aux (l :: ls) = 
+      if member (! dups, l) then 
+        aux ls
+      else if member (ls, l) then
+        (dups := l :: (! dups);
+         aux ls)
+      else l :: (aux ls)
+      | aux [] = [] in
+    aux ls end
+
+  fun remove (l :: ls) e = if e = l then remove ls e else l :: (remove ls e)
+    | remove [] e = []
 
 end
 

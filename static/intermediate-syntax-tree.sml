@@ -1,20 +1,22 @@
 structure IntermediateSyntaxTree = struct
+  structure TS = TypeScheme
   datatype scon = datatype SpecialConstant.scon
   type lvid = LongValueIdentifier.lvid
   datatype lab = datatype Lab.lab
+  type ts = TypeScheme.tysch
 
   datatype atexp =
     SCON_ATEXP of scon |
     LVID_ATEXP of lvid |
     RCD_ATEXP  of exprow |
-    LET_ATEXP  of dec * exp |
-    EXP_ATEXP  of exp
+    LET_ATEXP  of dec * expty |
+    EXP_ATEXP  of expty
 
   and exp =
-    AT_EXP   of atexp |
-    APP_EXP  of exp * atexp |
-    HAND_EXP of exp * match |
-    RAS_EXP  of exp |
+    AT_EXP   of atexpty |
+    APP_EXP  of expty * atexpty |
+    HAND_EXP of expty * match |
+    RAS_EXP  of expty |
     FN_EXP   of match
 
   and dec =
@@ -33,30 +35,36 @@ structure IntermediateSyntaxTree = struct
     SCON_ATPAT of scon |
     LVID_ATPAT of lvid |
     RCD_ATPAT of patrow |
-    PAT_ATPAT of pat
+    PAT_ATPAT of patty
 
   and pat =
-    AT_PAT of atpat |
-    CON_PAT of lvid * atpat |
-    LAY_PAT of vid * pat
+    AT_PAT of atpatty |
+    CON_PAT of (lvid * ts) * atpatty |
+    LAY_PAT of vid * patty
 
-  withtype id = string
+  withtype expty = exp * ts
+  and atexpty = atexp * ts
+  and patty = pat * ts
+  and atpatty = atpat * ts
+
+  and id = string
 
   and isfun = bool
   and vid = id
 
-  and vrow = (pat * exp) list
-
-  and exprow = (lab * exp) list
-  and mrule = pat * exp
+  and vrow = (patty * expty) list
+  and exprow = (lab * expty) list
+  and mrule = patty * expty
   and match = mrule list
   and conbind = (vid * isfun) list
   and datbind = conbind list
   and exbind = (vid * isfun) list
-  and patrow = (lab * pat) list
+  and patrow = (lab * patty) list
   and strdec = dec
   and topdec = strdec
   and prog = topdec
+
+  val valOf = Option.valOf
 
   fun nullSeqdec (SEQ_DEC decs) = List.null decs
     | nullSeqdec _ = raise Match
@@ -89,15 +97,15 @@ structure IntermediateSyntaxTree = struct
     | atexpToString (LVID_ATEXP lvid) = LVID.toString lvid
     | atexpToString (RCD_ATEXP exprow) = "{" ^ exprowToString exprow ^ "}"
     | atexpToString (LET_ATEXP (dec, exp)) =
-    "LET " ^ (decToString dec) ^ "IN " ^ (expToString exp) ^ "END"
-    | atexpToString (EXP_ATEXP exp) = expToString exp
+    "LET " ^ (decToString dec) ^ "IN " ^ (expToString (#1 exp)) ^ "END"
+    | atexpToString (EXP_ATEXP exp) = expToString (#1 exp)
 
-  and expToString (AT_EXP atexp) = atexpToString atexp
+  and expToString (AT_EXP atexp) = atexpToString (#1 atexp)
     | expToString (APP_EXP (exp, atexp)) =
-    (expToString exp) ^ " " ^ (atexpToString atexp)
+    (expToString (#1 exp)) ^ " " ^ (atexpToString (#1 atexp))
     | expToString (HAND_EXP (exp, match)) =
-    (expToString exp) ^ "HANDLE" ^ (matchToString match)
-    | expToString (RAS_EXP exp) = "RAISE " ^ (expToString exp)
+    (expToString (#1 exp)) ^ "HANDLE" ^ (matchToString match)
+    | expToString (RAS_EXP exp) = "RAISE " ^ (expToString (#1 exp))
     | expToString (FN_EXP match) = "FN " ^ (matchToString match)
 
   and decToString (VAL_DEC valbind) =
@@ -111,26 +119,26 @@ structure IntermediateSyntaxTree = struct
   and valbindToString (NRE_VALBIND vrow) = vrowToString vrow
     | valbindToString (REC_VALBIND vrow) = "REC " ^ (vrowToString vrow)
 
-  and vrowToString vrow = LA.toString vrow 
-    (fn (pat, exp) => (patToString pat) ^ " = " ^ (expToString exp) ) "AND\n "
+  and vrowToString vrow = LA.toString vrow
+    (fn (pat, exp) => (patToString (#1 pat)) ^ " = " ^ (expToString (#1 exp)) ) "AND\n "
 
   and atpatToString WILD_ATPAT = "_"
     | atpatToString (SCON_ATPAT scon) = SC.toString scon
     | atpatToString (LVID_ATPAT lvid) = LVID.toString lvid
     | atpatToString (RCD_ATPAT patrow) =
     "{" ^ (patrowToString patrow) ^ "}"
-    | atpatToString (PAT_ATPAT pat) = patToString pat
+    | atpatToString (PAT_ATPAT pat) = patToString (#1 pat)
 
-  and patToString (AT_PAT atpat) = atpatToString atpat
+  and patToString (AT_PAT atpat) = atpatToString (#1 atpat)
     | patToString (CON_PAT (lvid, atpat)) =
-    (LVID.toString lvid) ^ (atpatToString atpat)
-    | patToString (LAY_PAT (vid, pat)) = vid ^ " AS " ^ (patToString pat)
+    (LVID.toString (#1 lvid)) ^ (atpatToString (#1 atpat))
+    | patToString (LAY_PAT (vid, pat)) = vid ^ " AS " ^ (patToString (#1 pat))
 
-  and exprowToString exprow = LA.toString exprow 
-    (fn (lab, exp) => (Lab.toString lab) ^ " = " ^(expToString exp)) ","
+  and exprowToString exprow = LA.toString exprow
+    (fn (lab, exp) => (Lab.toString lab) ^ " = " ^(expToString (#1 exp))) ","
 
   and mruleToString (pat, exp) =
-    (patToString pat) ^ " => " ^ (expToString exp) ^ ""
+    (patToString (#1 pat)) ^ " => " ^ (expToString (#1 exp)) ^ ""
 
   and matchToString match = LA.toString match mruleToString "\n| "
 
@@ -142,13 +150,155 @@ structure IntermediateSyntaxTree = struct
 
   and exbindToString exbind = LA.toString exbind conToString " | "
 
-  and patrowToString patrow = LA.toString patrow 
-    (fn (lab, pat) => (Lab.toString lab) ^ " = " ^ (patToString pat)) ","
+  and patrowToString patrow = LA.toString patrow
+    (fn (lab, pat) => (Lab.toString lab) ^ " = " ^ (patToString (#1 pat))) ","
 
   and strdecToString dec = decToString dec
   and topdecToString strdec = strdecToString strdec
   and progToString topdec = topdecToString topdec ^ "\n"
 
   val toString = progToString
+
+  exception Goto
+  datatype ty = datatype Type.ty
+  structure LM = LabBinaryMap
+  structure LS = LabBinarySet
+
+  val a = VARTY (0, false)
+  val tswild = TS.wild
+
+  fun fillAtexp tss (atexp, ts) = let
+    val (ae, fin) = case atexp of
+      SCON_ATEXP s => (SCON_ATEXP s, true)
+    | LVID_ATEXP l => (LVID_ATEXP l, true)
+    | RCD_ATEXP r => let 
+       in
+      (RCD_ATEXP (List.map (fn (lab, exp) => let
+        val tss' = List.foldl 
+          (fn ((c, ROWTY (rt, true)), tss') => (
+            ((c, valOf (LM.find (rt, lab))) :: tss')
+            handle Option => tss')
+            | (_, tss') => tss') [] (ts :: tss)
+        val (exp', fin) = fillExp tss' exp in 
+        if fin then (lab, exp') else raise Goto end) r), true)
+      handle Goto => (RCD_ATEXP r, false) end
+    | LET_ATEXP (dec, exp) => let 
+      val (exp', fin1) = (fillExp (ts :: tss) exp) 
+      val (dec', fin2) = (fillDec dec) in
+      (LET_ATEXP (dec', exp'), fin1 andalso fin2) end
+    | EXP_ATEXP exp => let
+      val (exp', fin)  = fillExp (ts :: tss) exp in 
+      (EXP_ATEXP exp', fin) end in 
+     ((ae, ts), fin)  end
+
+  and fillExp tss (exp, ts) = let 
+    val (exp', fin) = case exp of
+      AT_EXP   atexp => let
+      val (atexp', fin) = fillAtexp (ts :: tss) atexp in
+      (AT_EXP atexp', fin) end
+    | APP_EXP  (exp, atexp) => let
+      val tsatexp = #2 exp
+      val tssexp = List.map (fn (c, resty) => (c, FUNTY(a, resty))) (ts :: tss)
+      val tsexp = (#1 (#2 atexp),FUNTY (#2 (#2 atexp), a))
+      val (exp', fin1) = fillExp (tsexp :: tssexp) exp
+      val (atexp', fin2) = fillAtexp [tsatexp] atexp in
+      (APP_EXP (exp', atexp'), true) end
+    | HAND_EXP _ => raise Match
+    | RAS_EXP  (exp) => raise Match
+    | FN_EXP   match => let 
+      val tssarg = List.foldl (
+        fn ((c, FUNTY (a, b)), tss') => (c, a) :: tss'
+          | (_, tss') => tss' ) [] (ts :: tss) 
+      val tssres = List.foldl (
+        fn ((c, FUNTY (a, b)), tss') => (c, b) :: tss'
+          | (_, tss') => tss' ) [] (ts :: tss)   in
+      (FN_EXP (List.map (fn (pat, exp) => let
+        val (pat', fin1) = fillPat tssarg pat
+        val (exp', fin2) = fillExp tssres exp in
+        if fin1 andalso fin2 then (pat', exp') else raise Goto end) match), true)
+      handle Goto => (FN_EXP match, false) end in
+    ((exp', ts), fin)  end 
+
+  and fillDec dec = (case dec of
+      VAL_DEC valbind => let
+      val (valbind', fin) = fillValbd valbind in
+      (VAL_DEC valbind', fin) end
+    | DAT_DEC datbind => (DAT_DEC datbind, true)
+    | EXC_DEC exbind  => raise Match
+    | LOC_DEC (dec1, dec2) => raise Match
+    | SEQ_DEC decs => (SEQ_DEC (List.map (fn dec => let 
+      val (dec', fin) = fillDec dec in 
+      if fin then dec' else raise Goto end) decs), true)
+      handle Goto => (dec, false))
+
+  and fillValbd valbd = case valbd of
+      NRE_VALBIND vrow => let
+      val (vrow', fin) = fillVrow vrow in
+      (NRE_VALBIND vrow', fin) end
+    | REC_VALBIND vrow => let
+      val (vrow', fin) = fillVrow vrow in
+      (REC_VALBIND vrow', fin) end
+
+  and fillVrow vrow = (List.map (fn (pat, exp) => let
+    val (pat', fin1) = fillPat [#2 exp] pat
+    val (exp', fin2) = fillExp [#2 pat] exp in
+    if fin1 andalso fin2 then (pat', exp') else raise Goto end) vrow, true)
+    handle Goto => (vrow, false)
+
+  and fillAtpat tss (atpat, ts) = let
+    val (atpat', fin) = case atpat of
+      WILD_ATPAT   => (WILD_ATPAT, true)
+    | SCON_ATPAT s => (SCON_ATPAT s, true)
+    | LVID_ATPAT l => (LVID_ATPAT l, true)
+    | RCD_ATPAT patrow => (let 
+      val patrow' = List.map (fn (lab, pat) => let
+        val tss' = List.foldl (fn ((c, ROWTY (rty, w)),tss') =>
+          (((c, valOf (LM.find (rty, lab))) :: tss')
+            handle Option => tss') 
+          | (_,tss') => tss') [] (ts :: tss) 
+        val (pat', fin) = fillPat tss' pat in 
+        if fin then (lab, pat') else raise Goto end) 
+      val (addlabs, valid) = List.foldl (fn ((c, ROWTY (rty, false)), (res, t)) => let
+        val res = LS.difference (LM.keySet rty,
+          LS.fromList (List.map (fn (lab, exp) => lab) patrow)) in
+          (res, true) end
+        | (_, r) => r) (LS.empty, false) (ts :: tss) in
+      if valid then (RCD_ATPAT (LS.foldl (fn (lab, pr) => pr @ [(lab, 
+        (AT_PAT (WILD_ATPAT, tswild), tswild))]) patrow addlabs), true 
+      )        else (atpat, false) end handle Goto => (atpat, false)) 
+    | PAT_ATPAT pat => let 
+      val (pat', fin) =  fillPat (ts :: tss) pat in
+      (PAT_ATPAT pat', fin) end in 
+    ((atpat', ts), fin) end
+
+  and fillPat tss (pat, ts) = let
+    val (pat', fin) = case pat of
+      AT_PAT atpat => let
+      val (atpat', fin) =  (fillAtpat (ts :: tss) atpat) in
+      (AT_PAT atpat', fin) end
+    | CON_PAT ((l, tsl), atpat) => let
+      val (c, FUNTY (t1, t2)) = tsl
+      val (atpat', fin) = fillAtpat [(c, t1)] atpat in
+      (CON_PAT ((l,tsl), atpat'), fin) end
+    | LAY_PAT _ => raise Match in 
+    ((pat', ts), fin)  end
+
+  fun insAtexp imap (atexp, ts) = (atexp, TS.instantiate ts imap)
+  and insExp imap (exp, ts) = (exp, TS.instantiate ts imap)
+  and insAtpat imap (atpat, ts) = (atpat, TS.instantiate ts imap)
+  and insPat imap (pat, ts) = (pat, TS.instantiate ts imap)
+  and insDec imap dec = case dec of
+        VAL_DEC valbind => VAL_DEC (case valbind of
+          NRE_VALBIND vrow => NRE_VALBIND (insVrow imap vrow)
+        | REC_VALBIND vrow => REC_VALBIND (insVrow imap vrow))
+      | DAT_DEC datbind => DAT_DEC datbind
+      | EXC_DEC exbind  => raise Match
+      | LOC_DEC (dec1, dec2) => raise Match
+      | SEQ_DEC decs => SEQ_DEC (List.map (fn dec => insDec imap dec) decs)
+  and insVrow imap vrow = List.map (fn (pat, exp) => 
+    (insPat imap pat, insExp imap exp)) vrow
+
+
+
 
 end
