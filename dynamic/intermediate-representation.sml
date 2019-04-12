@@ -149,6 +149,10 @@ structure InterInference = struct
       val nloc = newloc () in
       ([NEWFCN (nloc, fid)], nloc) end
 
+    | infExp spa (RAS_EXP (exp, ts)) = let
+      val (codeExp, locExp) = infExp spa exp in
+      ([RAISE locExp], (~1, ~1)) end
+
     (*| infExp spa (HAND_EXP ((exp, ts), match)) = let*)
       (*val (codeExp, locExp) = infExp spa exp in*)
       (*(codeExp, locExp) end*)

@@ -127,7 +127,7 @@ structure NewAllocation = struct
              (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD f)
                          | (Value.CON ((~1, f), t)) => ((~1, f), FLD f)
                          | (Value.EXC ((~1, f), t)) => ((~1, f), FLD f))
-             InitialSpace.basValueList))
+             (#2 (ListPair.unzip (InitialSpace.basNameValueListPair)))))
     val _ = locmap := IMAP.insert (! locmap, ~1, baslm)
 
     val locctmap = IMAP.map (fn TOP _ => ICT.newi 0

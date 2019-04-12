@@ -77,56 +77,6 @@ structure InterInstruction = struct
     | getLocs (RETURN l)              = [l]
     | getLocs EXIT                    = []
 
-  fun getRetlocs (MOV    (l1, l2))       = []
-    | getRetlocs (NEWFCN (l, f))         = []
-    | getRetlocs (NEWSCN (l, s))         = []
-    | getRetlocs (NEWRCD (l, ls))        = []
-    | getRetlocs (NEWTAG (l1, l2, c))    = []
-    | getRetlocs (MATRCD (l1, l2, l))    = []
-    | getRetlocs (MATTAG (l1, l2, c, b)) = []
-    | getRetlocs (MATINT (l, i, b))      = []
-    | getRetlocs (CALL   (l1, l2, l3))   = []
-
-    | getRetlocs (RAISE   l)             = []
-
-    | getRetlocs (LABEL  l)              = []
-    | getRetlocs (GOTO l)                = []
-    | getRetlocs (RETURN l)              = [l]
-    | getRetlocs EXIT                    = []
-
-  fun getDefs (MOV    (l1, l2))       = [l1]
-    | getDefs (NEWFCN (l, f))         = [l]
-    | getDefs (NEWSCN (l, s))         = [l]
-    | getDefs (NEWRCD (l, ls))        = [l]
-    | getDefs (NEWTAG (l1, l2, c))    = [l1]
-    | getDefs (MATRCD (l1, l2, l))    = [l1]
-    | getDefs (MATTAG (l1, l2, c, b)) = [l1]
-    | getDefs (MATINT (l, i, b))      = [l]
-    | getDefs (CALL   (l1, l2, l3))   = [l1]
-
-    | getDefs (RAISE   l)   = [l]
-
-    | getDefs (LABEL  l)              = []
-    | getDefs (GOTO l)                = []
-    | getDefs (RETURN l)              = []
-    | getDefs EXIT                    = []
-
-  fun getRefs (MOV    (l1, l2))       = [l2]
-    | getRefs (NEWFCN (l, f))         = []
-    | getRefs (NEWSCN (l, s))         = []
-    | getRefs (NEWRCD (l, ls))        = []
-    | getRefs (NEWTAG (l1, l2, c))    = [l2]
-    | getRefs (MATRCD (l1, l2, l))    = [l2]
-    | getRefs (MATTAG (l1, l2, c, b)) = [l2]
-    | getRefs (MATINT (l, i, b))      = []
-    | getRefs (CALL   (l1, l2, l3))   = [l2, l3]
-
-    | getRefs (RAISE   l)   = [l]
-
-    | getRefs (LABEL  l)              = []
-    | getRefs (GOTO l)                = []
-    | getRefs (RETURN l)              = [l]
-    | getRefs EXIT                    = []
 
   fun mapLoc l map = Option.getOpt (LMAP.find (map, l), l)
 

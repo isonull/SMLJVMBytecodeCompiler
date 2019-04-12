@@ -51,12 +51,8 @@ structure InterProgram = struct
   fun updateMethod prog c m = 
     updateClosure prog c (fn cl => IC.updateMethod cl m) 
 
-  fun getRefs prog = IM.foldl (fn (c, r) => r @ (IC.getRefs c)) [] prog
 
   fun getMethod prog c = IC.getMethod (valOf (IM.find (prog, c)))
-
-  fun getSingleRefAddr prog = let
-    val refs = getRefs prog in ListAux.uniqueElements refs end
 
   fun getMaxloc prog cid = IC.getMaxloc (valOf (find (prog, cid)))
 
@@ -71,7 +67,7 @@ structure InterProgram = struct
     "\n --------------------------- \n"
 end
 
-structure ClosureInline = struct
+(* structure ClosureInline = struct
 
   structure IM = InterMethod
   structure IP = InterProgram
@@ -246,5 +242,105 @@ structure ClosureInline = struct
         TIO.println (IM.toString methf)  else () end;
     (! prog)
     ) 
+
+end *)
+
+structure InterAnalysis = struct
+
+  structure II = InterInstruction
+  structure IC = InterClosure
+  structure IM = InterMethod
+  structure IP = InterProgram
+
+  structure IMAP = IntBinaryMapAux
+  structure LSET = LocationBinarySet
+  datatype code = datatype II.code
+
+  fun getFcnRefs prog f = let
+
+    val nonlocset = ref ((IMAP.map (fn _ => LSET.empty) prog)
+    : (LSET.set) IMAP.map)
+
+    fun addls cid (loc as (c, l)) = let
+      val lm = ! nonlocset
+      val clm = valOf (IMAP.find (lm, cid))
+        handle Option => (TIO.println "addls-clm"; raise Option)
+      val psop = LSET.member (clm, loc) in
+      if psop orelse c = ~1 orelse c = cid then () else let
+        val newclm = LSET.add (clm, loc)
+        val newlm  = IMAP.insert (lm, cid, newclm) in
+      nonlocset := newlm end end
+
+  fun genClos (cid, clos) = let
+
+  fun genMeth meth = let
+
+    val locs = IM.getLocs meth in
+
+    (* genMeth *)
+    List.map (fn (c, l) => let
+      val path = valOf (IP.path prog cid c)
+        handle Option => (TIO.println "genMeth-path"; 
+        TIO.println (Int.toString cid);
+        TIO.println (Int.toString c);
+        raise Option) in
+      List.map (fn cid => addls cid (c, l)) path end) locs end in
+
+    (* genClos *)
+    genMeth (case clos of
+                  IC.TOP (_, _, m) => m
+                | IC.FCN (_, _, _, m) => m) end in
+    (* genProg *)
+    IMAP.mapi (fn p => genClos p) prog;
+    valOf (IMAP.find (! nonlocset, f)) end
+    handle Option => LSET.empty
+
+  fun getRefs prog (MOV    (l1, l2))       = LSET.fromList [l2]
+    | getRefs prog (NEWFCN (l, f))         = getFcnRefs prog f
+    | getRefs prog (NEWSCN (l, s))         = LSET.fromList []
+    | getRefs prog (NEWRCD (l, ls))        = LSET.fromList []
+    | getRefs prog (NEWTAG (l1, l2, c))    = LSET.fromList [l2]
+    | getRefs prog (MATRCD (l1, l2, l))    = LSET.fromList [l2]
+    | getRefs prog (MATTAG (l1, l2, c, b)) = LSET.fromList [l2]
+    | getRefs prog (MATINT (l, i, b))      = LSET.fromList []
+    | getRefs prog (CALL   (l1, l2, l3))   = LSET.fromList [l2, l3]
+
+    | getRefs prog (RAISE   l)   =           LSET.fromList [l]
+
+    | getRefs prog (LABEL  l)              = LSET.fromList []
+    | getRefs prog (GOTO l)                = LSET.fromList []
+    | getRefs prog (RETURN l)              = LSET.fromList [l]
+    | getRefs prog EXIT                    = LSET.fromList []
+
+  fun getDefs (MOV    (l1, l2))       = LSET.fromList [l1]
+    | getDefs (NEWFCN (l, f))         = LSET.fromList [l]
+    | getDefs (NEWSCN (l, s))         = LSET.fromList [l]
+    | getDefs (NEWRCD (l, ls))        = LSET.fromList [l]
+    | getDefs (NEWTAG (l1, l2, c))    = LSET.fromList [l1]
+    | getDefs (MATRCD (l1, l2, l))    = LSET.fromList [l1]
+    | getDefs (MATTAG (l1, l2, c, b)) = LSET.fromList [l1]
+    | getDefs (MATINT (l, i, b))      = LSET.fromList [l]
+    | getDefs (CALL   (l1, l2, l3))   = LSET.fromList [l1]
+
+    | getDefs (RAISE   l)             = LSET.fromList [l]
+
+    | getDefs (LABEL  l)              = LSET.fromList []
+    | getDefs (GOTO l)                = LSET.fromList []
+    | getDefs (RETURN l)              = LSET.fromList []
+    | getDefs EXIT                    = LSET.fromList []
+
+  fun getDep prog i1 i2 = let
+    val def1 = getDefs i1
+    val def2 = getDefs i2
+    val ref1 = getRefs prog i1
+    val ref2 = getRefs prog i2
+    val d1r2 = LSET.isEmpty (LSET.intersection (def1, ref2))
+    val d2r1 = LSET.isEmpty (LSET.intersection (def2, ref1))
+    val d1d2 = LSET.isEmpty (LSET.intersection (def1, def2)) in
+    d1r2 orelse d2r1 orelse d1d2 end
+
+end
+
+structure TailCall = struct 
 
 end

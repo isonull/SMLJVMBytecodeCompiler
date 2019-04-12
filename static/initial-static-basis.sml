@@ -60,30 +60,45 @@ structure InitialStaticBasis = struct
   val exnTyfcn  = TF.fromTyname exnTyname
 
   val intTy = CONTY ([], intTyname)
+  val strTy = CONTY ([], strTyname)
   val intpairTy = ROWTY (LM.fromList [intTy, intTy], false)
 
   val isubTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val iaddTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val imulTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val idivTysch = (VS.empty, FUNTY (intpairTy, intTy))
+  val iremTysch = (VS.empty, FUNTY (intpairTy, intTy))
   val inegTysch = (VS.empty, FUNTY (intTy, intTy))
-  val ioutTysch = (VS.empty, FUNTY (intTy, TY.ROWTY (LM.empty, false)))
+  val tostrTysch= (VS.fromList [(0, false)], 
+    FUNTY (VARTY (0, false), strTy))
+  val printTysch= (VS.empty, FUNTY (strTy, TY.ROWTY (LM.empty, false)))
+  val drefValstr= ((VS.fromList [(0, false)],
+    FUNTY ((CONTY ([VARTY (0, false)], refTyname)),
+            VARTY (0, false))), CON)
+  val arefValstr= ((VS.fromList [(0, false)],
+    FUNTY (ROWTY (LM.fromList [CONTY ([VARTY (0, false)], refTyname), 
+                               VARTY (0, false)], false),
+           CONTY ([VARTY (0, false)], listTyname))), CON)
 
   val boolValstr = (boolTysch, CON)
-  val nilListValstr = (listTysch, CON)
-  val conListValstr = ((VS.fromList [(0, false)],
-    FUNTY (ROWTY (LM.fromList [VARTY (0, false), CONTY ([VARTY (0, false)], listTyname)], false),
+  val nilValstr = (listTysch, CON)
+  val conValstr = ((VS.fromList [(0, false)],
+    FUNTY (ROWTY (LM.fromList [VARTY (0, false), 
+                               CONTY ([VARTY (0, false)], listTyname)], false),
            CONTY ([VARTY (0, false)], listTyname))), CON)
-  val refValstr = ((VS.fromList [(0, false)], FUNTY (VARTY (0, false), (CONTY ([VARTY (0,
-                                false)], refTyname)))), CON)
+  val refValstr = ((VS.fromList [(0, false)],
+    FUNTY (VARTY (0, false), 
+          (CONTY ([VARTY (0, false)], refTyname)))), VAL)
   val exnValstr = (exnTysch, EXC)
 
   val isubValstr = (isubTysch, VAL)
   val iaddValstr = (iaddTysch, VAL)
   val imulValstr = (imulTysch, VAL)
   val idivValstr = (idivTysch, VAL)
+  val iremValstr = (iremTysch, VAL)
   val inegValstr = (inegTysch, VAL)
-  val ioutValstr = (inegTysch, VAL)
+  val tostrValstr= (tostrTysch, VAL)
+  val printValstr= (printTysch, VAL)
 
   val unitValenv = SM.empty
   val intValenv = SM.empty
@@ -97,9 +112,9 @@ structure InitialStaticBasis = struct
     [("true", boolValstr), ("false", boolValstr)]
 
   val listValenv = SM.fromListPair
-    [("nil", nilListValstr), ("con", conListValstr)]
+    [("nil", nilValstr), ("con", conValstr)]
 
-  val refValenv = SM.fromListPair [("ref", refValstr)]
+  val refValenv = SM.empty
 
 
   val tynameList = [unitTyname, boolTyname, intTyname, wordTyname,
@@ -119,29 +134,43 @@ structure InitialStaticBasis = struct
 
   val tyenv = SM.fromListPair tyenvMapListPair
 
-  val vidList = ["ref", "nil", "true", "false", "Match", "Bind",
-    "con", "eq", "asn", "isub", "iadd", "imul", "idiv", "ineg", "iout"]
-
   val refValstr   = refValstr
-  val nilValstr   = nilListValstr
+  val nilValstr   = nilValstr
   val trueValstr  = boolValstr
   val falseValstr = boolValstr
   val matchValstr = exnValstr
   val bindValstr  = exnValstr
-  val conValstr   = conListValstr
-  val eqValstr    = ((VS.singleton (0, false),
-      FUNTY (ROWTY (LM.fromList [VARTY (0, true), VARTY (0, true)], false),
+  val conValstr   = conValstr
+  val eqValstr    = ((VS.singleton (0, true),
+    FUNTY (ROWTY (LM.fromList [VARTY (0, true), VARTY (0, true)], false),
            CONTY ([], boolTyname))), VAL)
   val signValstr  = ((VS.singleton (0, false),
     FUNTY (ROWTY (LM.fromList [CONTY ([VARTY (0, false)], refTyname), VARTY (0,
                                       false)], false),
            ROWTY (LM.empty, false))), VAL)
 
-  val valstrList = [refValstr, nilValstr, trueValstr, falseValstr,
-    matchValstr, bindValstr, conValstr, eqValstr, signValstr,
-    isubValstr, iaddValstr, imulValstr, idivValstr, inegValstr, ioutValstr]
+  val vidValstrListPair = [
+    ("iadd"   , iaddValstr),
+    ("isub"   , isubValstr),
+    ("imul"   , imulValstr),
+    ("idiv"   , idivValstr),
+    ("irem"   , iremValstr),
+    ("ineg"   , inegValstr),
+    ("false"  , falseValstr),
+    ("true"   , trueValstr),
+    ("CON"    , conValstr),
+    ("NIL"    , nilValstr),
+    ("Match"  , matchValstr),
+    ("Bind"   , bindValstr),
+    ("ref"    , refValstr),
+    ("dref"   , drefValstr),
+    ("aref"   , arefValstr),
+    ("eq"     , eqValstr),
+    ("print"  , printValstr),
+    ("tostr"  , tostrValstr)
+    ]
 
-  val valenv = SM.fromListPair (ListPair.zip (vidList, valstrList))
+  val valenv = SM.fromListPair vidValstrListPair
 
   val strenv = SM.empty
 

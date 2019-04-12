@@ -21,16 +21,11 @@ structure InterClosure = struct
     "Locmax: " ^ s2 ^ "\n" ^ 
     "Codes: \n" ^ s3 end
 
-  fun getRefs clos = case clos of
-          TOP (_, _, m) => IM.getRefs m 
-        | FCN (_, _, _, m) => IM.getRefs m
-
   fun getMethod (TOP (_, _, m)) = m
     | getMethod (FCN (_, _, _, m)) = m
     
   fun getMaxloc (TOP (_, m, _)) = m
     | getMaxloc (FCN (_, _, m, _)) = m
-
 
   fun prevClosid (TOP (_, _, _)) = ~1
     | prevClosid (FCN (cid, _, _, _)) = cid

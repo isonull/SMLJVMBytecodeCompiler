@@ -204,7 +204,9 @@ structure IntermediateSyntaxTree = struct
       val (atexp', fin2) = fillAtexp [tsatexp] atexp in
       (APP_EXP (exp', atexp'), true) end
     | HAND_EXP _ => raise Match
-    | RAS_EXP  (exp) => raise Match
+    | RAS_EXP  (exp) => let
+        val (exp', fin) = fillExp (ts :: tss) exp in
+        (RAS_EXP exp', fin) end
     | FN_EXP   match => let 
       val tssarg = List.foldl (
         fn ((c, FUNTY (a, b)), tss') => (c, a) :: tss'

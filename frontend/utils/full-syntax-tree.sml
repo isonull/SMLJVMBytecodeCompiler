@@ -78,14 +78,14 @@ structure FullSyntaxTree = struct
     LAY_PAT of vid * ty option * pat
 
   and ty =
-    VAR_TY of tyvar | 
+    VAR_TY of tyvar |
     RCD_TY of tyrow |
     CON_TY of tyseq * ltycon |
     TUP_TY of tyseq |
     FUN_TY of ty * ty
 
   withtype id = string
-  and tyvar = string * bool (* equalable *) 
+  and tyvar = string * bool (* equalable *)
 
   and vid = id
   and strid = id
@@ -156,7 +156,6 @@ structure FullSyntaxTree = struct
     then raise DerivedFormException
     else (getUniqueId ()) :: (getUniqueIdseq (n - 1))
 
-
   fun unitAtexpToRcdAtexp UNIT_ATEXP = RCD_ATEXP nil
     | unitAtexpToRcdAtexp _ = raise DerivedFormException
 
@@ -206,7 +205,7 @@ structure FullSyntaxTree = struct
   (* TODO new id*)
   fun whilExpToLetAtexp (WHIL_EXP (e, e')) = let
     val id = getUniqueId ()
-    val brTrue = expByAtexp (SEQ_ATEXP [e', 
+    val brTrue = expByAtexp (SEQ_ATEXP [e',
       expByAppexp ([UNIT_ATEXP, LVID_ATEXP (lidById id)])])
     val ifExp = IF_EXP (e, brTrue, unitExp)
     val fnExp = FN_EXP [(unitPat, ifExp)]
@@ -218,8 +217,10 @@ structure FullSyntaxTree = struct
     | whilExpToLetAtexp _ = raise DerivedFormException
 
   fun listAtexpToInfexp (LIST_ATEXP (e :: es)) =
-    N_INFEXP (APP_INFEXP [EXP_ATEXP e], "::", listAtexpToInfexp (LIST_ATEXP es))
-    | listAtexpToInfexp (LIST_ATEXP nil) = APP_INFEXP [LVID_ATEXP (lidById "nil")]
+    APP_INFEXP [RCD_ATEXP [ (INT_LAB 1, e), 
+                            (INT_LAB 2, INF_EXP (listAtexpToInfexp (LIST_ATEXP es)))],
+                LVID_ATEXP (lidById "CON")]
+    | listAtexpToInfexp (LIST_ATEXP nil) = APP_INFEXP [LVID_ATEXP (lidById "NIL")]
     | listAtexpToInfexp _ = raise DerivedFormException
 
   fun unitAtpatToRcdAtpat UNIT_ATPAT = RCD_ATPAT nil
@@ -236,9 +237,11 @@ structure FullSyntaxTree = struct
     | tupAtpatToRcdAtpat _ = raise DerivedFormException
 
   fun listAtpatToInfPat (LIST_ATPAT (p :: ps)) =
-    INF_PAT (p, "::", listAtpatToInfPat (LIST_ATPAT ps))
+    CON_PAT (lidById "CON", RCD_ATPAT
+            [LAB_PATROW_ELE (INT_LAB 1, p),
+             LAB_PATROW_ELE (INT_LAB 2, listAtpatToInfPat (LIST_ATPAT ps))])
     | listAtpatToInfPat (LIST_ATPAT nil) =
-    AT_PAT (LVID_ATPAT (lidById "nil"))
+    AT_PAT (LVID_ATPAT (lidById "NIL"))
     | listAtpatToInfPat _ = raise DerivedFormException
 
   fun vidPatroweleToLabPatrowele (VID_PATROW_ELE (vid, a, SOME b)) =

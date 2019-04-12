@@ -14,16 +14,10 @@ structure InterMethod = struct
   val valOf = Option.valOf
   val isSome = Option.isSome
 
-
   val getLocs = ListAux.rmDup o
       (List.concat o (List.map (fn i => II.getLocs i))) 
 
-  val getRetlocs = ListAux.rmDup o
-      (List.concat o (List.map (fn i => II.getRetlocs i))) 
-
   fun replaceLocs map method = List.map (II.replaceLocs map) method
-
-  fun getRefs m = List.foldl (fn (i, r) => (II.getRefs i) @ r) [] m
 
   fun getLabelIndex m l = ListAux.findIndex m (LABEL l)
 
@@ -48,9 +42,18 @@ structure InterMethod = struct
       val (insts, nexts, prevs) = valOf (IM.find (map, i)) in
       IM.insert (map, i, (insts, nexts, IS.add (prevs, prev))) end
 
+    fun bbMapAddNext map i next = let
+      val (insts, nexts, prevs) = valOf (IM.find (map, i)) in
+      IM.insert (map, i, (insts, IS.add (nexts, next), prevs)) end
+
+    fun lastInstSeq m = case (ListAux.last m) of
+        RETURN _ => false
+      | RAISE _ => false
+      | _ => true
+
     val bbs = genBlocks meth
 
-    val (idBbMap, idLabNextsMap,labIdMap, _) = 
+    val (idBbMap, idLabNextsMap,labIdMap, numbbs) = 
       List.foldl (fn ((labelop, nexts, insts), (idBbMap,idLabNextsMap ,labIdMap, i)) => (
         IM.insert (idBbMap, i, insts),
         IM.insert (idLabNextsMap, i, nexts),
@@ -62,14 +65,21 @@ structure InterMethod = struct
 
     val bbmap = IM.foldli (fn (i, insts, bbmap) => let
       val nextLabs = valOf (IM.find (idLabNextsMap, i)) 
-      val nextIds = List.map (fn lab => 
-        valOf (IM.find (labIdMap, lab))) nextLabs in 
+      val nextIds = (if lastInstSeq insts andalso (i+1)< numbbs then 
+                        [i+1] else []) @ 
+        (List.map (fn lab => 
+          valOf (IM.find (labIdMap, lab))) nextLabs )
+       in 
       IM.insert (bbmap, i, (insts, IS.fromList nextIds, IS.fromList [])) end) 
       IM.empty idBbMap 
+
     val bbmapref = ref bbmap
+
     val _ = IM.mapi (fn (i, (insts, nexts, _)) =>
       IS.map (fn next => (bbmapref := (bbMapAddPrev (! bbmapref) next i); 0))
-      nexts) bbmap in
+      nexts) bbmap 
+                                                   
+     in
 
     ! bbmapref end
 
@@ -82,9 +92,28 @@ structure BlockMap = struct
   structure IM = InterMethod
   open IntBinaryMapAux
 
+  val isSome = Option.isSome
+  val valOf = Option.valOf
+  val getOpt = Option.getOpt
+
+
   val i2s = Int.toString
 
   val fromMethod = IM.getBlockMap
+
+  fun toMethod bbmap = foldl (fn ((insts, _, _), m) => m @ insts) [] bbmap
+
+  exception Ret of (int * int)
+
+  fun pc2bpc bbmap pc = (foldli (fn (bi, (insts, _, _), pc') => let
+    val bblen = length insts in
+    if pc' + bblen > pc andalso pc' <= pc then raise (Ret (bi,pc - pc')) else
+      pc' + bblen end) 0 bbmap; NONE)
+    handle Ret i => SOME i
+
+  (*fun hoist bbmap (bi, i) = let*)
+    (*val (insts, _, prevs) = valOf (find (bbmap, bi)) in*)
+    (*if i = 0 then *)
 
   fun toString bbm = IntBinaryMapAux.toString bbm
     i2s (fn (insts, nexts, prevs) => let
