@@ -243,11 +243,13 @@ structure NewCodeGeneration = struct
           val loop = getlo b
           val (code0, code3) = (s2l o getLoc) l1
           val code1 = code0 @ (loc2stk l2) @
-            [DUP, GETFIELD tagTagCid, BIPUSH c]
+            [DUP, GETFIELD tagTagCid, BIPUSH c, 
+             IF_ICMPNE 9, GETFIELD tagValCid, GOTO 7, POP]
           val broff = off + (JI.listSize code1)
           val reloff = (Option.valOf loop) - broff
             handle Option => 0
-          val code2 = [IF_ICMPNE reloff, GETFIELD tagValCid] @ code3
+          (* TODO: remove dup if branch *)
+          val code2 = [GOTO reloff] @ code3
           val code = code1 @ code2 in
           if Option.isSome loop then
             CODE code else
@@ -333,5 +335,9 @@ structure NewCodeGeneration = struct
     val clses = genProg prog in
     List.map (fn (id, c) => JC.write c
         (dir ^ "/" ^ "C" ^ (Int.toString id) ^ ".class")) clses; () end
+
+  fun writeClsList prog dir = (
+    List.map (fn (id, c) => JC.write c
+        (dir ^ "/" ^ "C" ^ (Int.toString id) ^ ".class")) prog; ())
 
 end

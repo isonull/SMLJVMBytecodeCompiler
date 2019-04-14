@@ -3,3 +3,7 @@ Group is
 ./frontend/frontend.cm
 ./static/static.cm
 ./dynamic/dynamic.cm
+./main.sml
+
+$/basis.cm
+$SMLNJ-LIB/Util/smlnj-lib.cm

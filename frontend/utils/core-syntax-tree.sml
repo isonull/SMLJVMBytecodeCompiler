@@ -413,6 +413,8 @@ structure CoreSyntaxTree = struct
   and topdecToString strdec = strdecToString strdec
   and progToString topdec = topdecToString topdec ^ "\n"
 
+  val toString = progToString
+
 end
 
 structure CST = CoreSyntaxTree

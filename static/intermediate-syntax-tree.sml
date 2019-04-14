@@ -52,10 +52,10 @@ structure IntermediateSyntaxTree = struct
   and isfun = bool
   and vid = id
 
-  and vrow = (patty * expty) list
+  and vrow = ((patty * expty) list * bool)
   and exprow = (lab * expty) list
   and mrule = patty * expty
-  and match = mrule list
+  and match = (mrule list * bool) (* is complete *)
   and conbind = (vid * isfun) list
   and datbind = conbind list
   and exbind = (vid * isfun) list
@@ -119,7 +119,7 @@ structure IntermediateSyntaxTree = struct
   and valbindToString (NRE_VALBIND vrow) = vrowToString vrow
     | valbindToString (REC_VALBIND vrow) = "REC " ^ (vrowToString vrow)
 
-  and vrowToString vrow = LA.toString vrow
+  and vrowToString (vrow, comp) = LA.toString vrow
     (fn (pat, exp) => (patToString (#1 pat)) ^ " = " ^ (expToString (#1 exp)) ) "AND\n "
 
   and atpatToString WILD_ATPAT = "_"
@@ -140,7 +140,7 @@ structure IntermediateSyntaxTree = struct
   and mruleToString (pat, exp) =
     (patToString (#1 pat)) ^ " => " ^ (expToString (#1 exp)) ^ ""
 
-  and matchToString match = LA.toString match mruleToString "\n| "
+  and matchToString (match, _) = LA.toString match mruleToString "\n| "
 
   and conbindToString conbind = LA.toString conbind conToString " | "
 
@@ -207,7 +207,7 @@ structure IntermediateSyntaxTree = struct
     | RAS_EXP  (exp) => let
         val (exp', fin) = fillExp (ts :: tss) exp in
         (RAS_EXP exp', fin) end
-    | FN_EXP   match => let 
+    | FN_EXP   (match, comp) => let 
       val tssarg = List.foldl (
         fn ((c, FUNTY (a, b)), tss') => (c, a) :: tss'
           | (_, tss') => tss' ) [] (ts :: tss) 
@@ -217,8 +217,8 @@ structure IntermediateSyntaxTree = struct
       (FN_EXP (List.map (fn (pat, exp) => let
         val (pat', fin1) = fillPat tssarg pat
         val (exp', fin2) = fillExp tssres exp in
-        if fin1 andalso fin2 then (pat', exp') else raise Goto end) match), true)
-      handle Goto => (FN_EXP match, false) end in
+        if fin1 andalso fin2 then (pat', exp') else raise Goto end) match, comp), true)
+      handle Goto => (FN_EXP (match, comp), false) end in
     ((exp', ts), fin)  end 
 
   and fillDec dec = (case dec of
@@ -226,7 +226,7 @@ structure IntermediateSyntaxTree = struct
       val (valbind', fin) = fillValbd valbind in
       (VAL_DEC valbind', fin) end
     | DAT_DEC datbind => (DAT_DEC datbind, true)
-    | EXC_DEC exbind  => raise Match
+    | EXC_DEC exbind  => (EXC_DEC exbind, true)
     | LOC_DEC (dec1, dec2) => raise Match
     | SEQ_DEC decs => (SEQ_DEC (List.map (fn dec => let 
       val (dec', fin) = fillDec dec in 
@@ -241,11 +241,11 @@ structure IntermediateSyntaxTree = struct
       val (vrow', fin) = fillVrow vrow in
       (REC_VALBIND vrow', fin) end
 
-  and fillVrow vrow = (List.map (fn (pat, exp) => let
+  and fillVrow (vrow, comp) = ((List.map (fn (pat, exp) => let
     val (pat', fin1) = fillPat [#2 exp] pat
     val (exp', fin2) = fillExp [#2 pat] exp in
-    if fin1 andalso fin2 then (pat', exp') else raise Goto end) vrow, true)
-    handle Goto => (vrow, false)
+    if fin1 andalso fin2 then (pat', exp') else raise Goto end) vrow, comp), true)
+    handle Goto => ((vrow, comp), false)
 
   and fillAtpat tss (atpat, ts) = let
     val (atpat', fin) = case atpat of
@@ -285,22 +285,58 @@ structure IntermediateSyntaxTree = struct
     | LAY_PAT _ => raise Match in 
     ((pat', ts), fin)  end
 
-  fun insAtexp imap (atexp, ts) = (atexp, TS.instantiate ts imap)
-  and insExp imap (exp, ts) = (exp, TS.instantiate ts imap)
-  and insAtpat imap (atpat, ts) = (atpat, TS.instantiate ts imap)
-  and insPat imap (pat, ts) = (pat, TS.instantiate ts imap)
+  and fillProg prog = let 
+    val (ist, fin) = fillDec prog in 
+    if fin then ist else raise Match end
+
+  fun insAtexp imap (atexp, ts) = let
+    val ts' = TS.instantiate ts imap in (case atexp of
+      SCON_ATEXP s => (SCON_ATEXP s)
+    | LVID_ATEXP l => (LVID_ATEXP l)
+    | RCD_ATEXP r  => (RCD_ATEXP 
+      (List.map (fn (lab, exp) => (lab, insExp imap exp)) r))
+    | LET_ATEXP (dec, exp) => (LET_ATEXP (insDec imap dec, insExp imap exp))
+    | EXP_ATEXP exp => (EXP_ATEXP (insExp imap exp)), ts') end
+   
+  and insExp imap (exp, ts) = (case exp of 
+      AT_EXP  atexp => AT_EXP (insAtexp imap atexp)
+    | APP_EXP (exp, atexp) => APP_EXP (insExp imap exp, insAtexp imap atexp)
+    | HAND_EXP (exp, match) => HAND_EXP (insExp imap exp, insMatch imap match)
+    | RAS_EXP exp => (RAS_EXP (insExp imap exp))
+    | FN_EXP match => FN_EXP (insMatch imap match), 
+    TS.instantiate ts imap)
+
+  and insMatch imap (match, comp) = (List.map (fn (pat, exp) => 
+    (insPat imap pat, insExp imap exp)) match, comp)
+
+  and insAtpat imap (atpat, ts) = (case atpat of 
+      WILD_ATPAT => WILD_ATPAT
+    | SCON_ATPAT s => SCON_ATPAT s
+    | LVID_ATPAT l => LVID_ATPAT l
+    | RCD_ATPAT r => RCD_ATPAT 
+      (List.map (fn (lab, pat) => (lab, insPat imap pat)) r)
+    | PAT_ATPAT pat => PAT_ATPAT (insPat imap pat) , 
+    TS.instantiate ts imap)
+
+  and insPat imap (pat, ts) = (case pat of
+      AT_PAT atpat => AT_PAT (insAtpat imap atpat)
+    | CON_PAT ((l, tsl), atpat) => CON_PAT (
+      (l, TS.instantiate tsl imap), insAtpat imap atpat)
+    | LAY_PAT _ => raise Match,
+    TS.instantiate ts imap)
+
   and insDec imap dec = case dec of
         VAL_DEC valbind => VAL_DEC (case valbind of
           NRE_VALBIND vrow => NRE_VALBIND (insVrow imap vrow)
         | REC_VALBIND vrow => REC_VALBIND (insVrow imap vrow))
       | DAT_DEC datbind => DAT_DEC datbind
-      | EXC_DEC exbind  => raise Match
-      | LOC_DEC (dec1, dec2) => raise Match
+      | EXC_DEC exbind  => EXC_DEC exbind
+      | LOC_DEC (dec1, dec2) => LOC_DEC (insDec imap dec1, insDec imap dec2)
       | SEQ_DEC decs => SEQ_DEC (List.map (fn dec => insDec imap dec) decs)
-  and insVrow imap vrow = List.map (fn (pat, exp) => 
-    (insPat imap pat, insExp imap exp)) vrow
+  and insVrow imap (vrow, comp) = (List.map (fn (pat, exp) => 
+    (insPat imap pat, insExp imap exp)) vrow, comp)
 
-
+  val toString = progToString
 
 
 end

@@ -46,6 +46,48 @@ public class Bas {
         }
     };
 
+    public static Object f159 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] == (Integer) m[1];
+        }
+    };
+
+    public static Object f160 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] != (Integer) m[1];
+        }
+    };
+
+    public static Object f161 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] < (Integer) m[1];
+        }
+    };
+
+    public static Object f162 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] >= (Integer) m[1];
+        }
+    };
+
+    public static Object f163 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] > (Integer) m[1];
+        }
+    };
+
+    public static Object f164 = new Fun() {
+        public Object apply(Object o) {
+            Object[] m = (Object[]) o;
+            return (Integer) m[0] <= (Integer) m[1];
+        }
+    };
+
     public static Object f0 = new Tag(0, null);
 
     public static Object f1 = new Tag(1, null);

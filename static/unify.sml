@@ -200,8 +200,11 @@ structure Unify = struct
     TIO.println s;
     TIO.println (TY.toString t1);
     TIO.println (TY.toString t2);
-    raise TY.UnifyFail s
-  )
+    raise TY.UnifyFail s)
+    | _ => (
+    TIO.println (TY.toString t1);
+    TIO.println (TY.toString t2);
+    raise TY.UnifyFail "UNKNOWN")
 
   fun unifyTs tfmap ts1 ts2 = let
     val ((vs1, t1), (vs2, t2)) = TS.disjoint ts1 ts2

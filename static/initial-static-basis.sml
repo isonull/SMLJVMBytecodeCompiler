@@ -97,6 +97,9 @@ structure InitialStaticBasis = struct
   val idivValstr = (idivTysch, VAL)
   val iremValstr = (iremTysch, VAL)
   val inegValstr = (inegTysch, VAL)
+  val icmpValstr = ((VS.singleton (0, true),
+    FUNTY (ROWTY (LM.fromList [intTy, intTy], false),
+           CONTY ([], boolTyname))), VAL)
   val tostrValstr= (tostrTysch, VAL)
   val printValstr= (printTysch, VAL)
 
@@ -156,6 +159,12 @@ structure InitialStaticBasis = struct
     ("idiv"   , idivValstr),
     ("irem"   , iremValstr),
     ("ineg"   , inegValstr),
+    ("ieq"    , icmpValstr),
+    ("ine"    , icmpValstr),
+    ("ilt"    , icmpValstr),
+    ("ige"    , icmpValstr),
+    ("igt"    , icmpValstr),
+    ("ile"    , icmpValstr),
     ("false"  , falseValstr),
     ("true"   , trueValstr),
     ("CON"    , conValstr),

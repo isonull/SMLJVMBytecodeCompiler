@@ -289,10 +289,8 @@ structure FullSyntaxTree = struct
 
     fun getFns 0 _ = getCase argNum
       | getFns n i =
-      FN_EXP [(patById (List.nth (idseq, i)), getFns (n - 1) (i + 1))]
-  in
-    (print ("test" ^ Int.toString argNum);(patById vid, getFns argNum 0))
-  end
+      FN_EXP [(patById (List.nth (idseq, i)), getFns (n - 1) (i + 1))] in
+    (patById vid, getFns argNum 0) end
 
   fun fvalbindToValbind nil = raise DerivedFormException
     | fvalbindToValbind fs = REC_VALBIND (map fvalToVrowele fs)
