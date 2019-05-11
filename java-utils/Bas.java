@@ -153,7 +153,7 @@ public class Bas {
 
     public static Object f7 = new Fun() {
         public Object apply(Object o) {
-            System.out.println(o);
+            System.out.print(o);
             return new Object[0];
         }
     };

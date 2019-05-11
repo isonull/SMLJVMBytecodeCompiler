@@ -10,6 +10,7 @@ structure Value = struct
   structure IDS = IdentifierStatus
   structure EN = ExceptionName
   structure SS = StringBinarySet
+  structure L = Location
 
   type basval = BasicValue.basval
   datatype scon = datatype SpecialConstant.scon
@@ -34,5 +35,13 @@ structure Value = struct
   fun toLoc (VAL (loc))    = loc
     | toLoc (CON (loc, _)) = loc
     | toLoc (EXC (loc, _)) = loc
+
+  fun getTag (VAL (loc))    = NONE
+    | getTag (CON (loc, t)) = SOME t
+    | getTag (EXC (loc, t)) = SOME t
+
+  fun toString (VAL (loc))    = (L.toString loc) ^ "v"
+    | toString (CON (loc, _)) = (L.toString loc) ^ "c"
+    | toString (EXC (loc, _)) = (L.toString loc) ^ "e"
 
 end

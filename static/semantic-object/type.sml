@@ -53,9 +53,11 @@ structure Type = struct
     | toString (ROWTY (r, w)) =
     "{" ^ (LM.toString r Lab.toString toString "=" ",") ^ "}" ^
     (if w then "..." else "")
-    | toString (CONTY (ts, n)) =
-      (LA.toString ts toString ",") ^ "." ^ (TN.toString n)
-    | toString (FUNTY (t1, t2)) = (toString t1) ^ "->" ^ (toString t2)
+    | toString (CONTY (ts, n)) = let
+      val vs = (LA.toString ts toString ",")
+      val vs = if vs = "" then "" else vs ^ " " in
+       vs ^ (TN.toString n) end
+    | toString (FUNTY (t1, t2)) = "(" ^ (toString t1) ^ "->" ^ (toString t2) ^ ")"
     | toString (ASSTY t) = Assty.toString t
 
   fun printWrongTypeForm t = let

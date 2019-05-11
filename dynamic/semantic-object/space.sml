@@ -36,10 +36,13 @@ structure Space = struct
   fun modifyValspa s vs = modify s (fromValspa vs)
   fun modifyTyspa s ts = modify s (fromTyspa ts)
 
+  fun getValspa (SPA (ss, ts, vs)) = vs
+
   (*fun getIdset (SPA (ss, ts, vs)) = VS.getIdset vs*)
 
   (*fun newId spa = let*)
     (*val idset = getIdset spa in*)
     (*VIS.new idset end*)
 
+  fun toString (SPA (ss, ts, vs)) = VS.toString vs
 end

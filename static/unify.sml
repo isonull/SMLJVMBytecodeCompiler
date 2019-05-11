@@ -10,7 +10,7 @@ structure Unify = struct
   structure LPA = ListPairAux
   structure TN = TypeName
   structure VS = VartySet
-  structure AS = IntBinarySetAux
+  structure AS = AsstySet
   structure TS = TypeScheme
   structure I = InstantiationEnvironment
   structure TF = TypeFunction
@@ -206,13 +206,38 @@ structure Unify = struct
     TIO.println (TY.toString t2);
     raise TY.UnifyFail "UNKNOWN")
 
-  fun unifyTs tfmap ts1 ts2 = let
+  fun closInsseq insseq clos asstySet = let
+    fun newAssty () = let
+      val new = AS.getNewAssty (! asstySet) in
+      asstySet := AS.add (! asstySet, new);
+      new end
+    val tvsets = List.map (fn (_, ty) => TY.getVartyset ty) insseq
+    val (_, dups) = List.foldl (fn (tvs, (one, two)) =>
+      VS.foldl (fn (tv, (one, two)) => 
+        if VS.member (one, tv) 
+          then (one, VS.add (two, tv))
+          else (VS.add (one, tv), two)) 
+        (one, two) tvs)
+      (VS.empty, VS.empty) tvsets
+    val maptvs = VS.intersection (dups, clos)
+    val insseqaux = VS.foldl (fn (tv, is) =>
+      (newAssty (), VARTY tv) :: is) [] maptvs
+    val bndseq = List.foldl (fn ((ta, VARTY tv), bs) =>
+      (tv, ASSTY ta) :: bs) [] insseqaux
+    val insseq = List.map (fn (ta, ty) => (ta, TY.bind ty bndseq)) insseq
+    val insseq = insseqaux @ insseq
+    val insseq = map (fn (v, t) => (v, TS.reg (clos, t))) insseq
+    in insseq end
+
+  fun unifyTs tfmap ts1 ts2 asstySet = let
     val ((vs1, t1), (vs2, t2)) = TS.disjoint ts1 ts2
     val clos = VS.union (vs1, vs2)
     val (t, insseq, newclos) = unifyTy tfmap clos t1 t2
     val (clos', t) = TS.reg (newclos, t)
-    val insseq' = map (fn (v, t) => (v, TS.reg (clos, t))) insseq
+    val insseq' = closInsseq insseq clos asstySet
     val insmap = IM.fromListPair insseq' in
+    (*val insseq' = map (fn (v, t) => (v, TS.reg (clos, t))) insseq*)
+    (*val insmap = IM.fromListPair insseq' in*)
     ((clos', t), insmap) end
 
   handle TY.UnifyFail s => (
@@ -221,13 +246,13 @@ structure Unify = struct
     TIO.println (TS.toString ts2);
     raise TY.UnifyFail s)
 
-  fun unifyI tm m1 m2 = let
+  fun unifyI tm m1 m2 asstySet = let
     fun insertInsseq map ((at, ts1) :: is) = let
       val ts2Op = I.find (map, at) in
       if Option.isSome ts2Op
       then let
         val ts2 = Option.valOf ts2Op
-        val (ts, insmap) = unifyTs tm ts1 ts2
+        val (ts, insmap) = unifyTs tm ts1 ts2 asstySet
         val insseq = I.listItemsi insmap
         val map' = I.insert (map, at, ts) in
         insertInsseq map' (insseq @ is) end
@@ -237,7 +262,7 @@ structure Unify = struct
 
   fun getLvidTyfcnMap (_,_,e) = E.getLvidTyfcnMap e
 
-  fun tsUnify c ts1 ts2 = unifyTs (getLvidTyfcnMap c) ts1 ts2
-  fun iUnify c i1 i2 = unifyI (getLvidTyfcnMap c) i1 i2
+  fun tsUnify c ts1 ts2 asstySet = unifyTs (getLvidTyfcnMap c) ts1 ts2 asstySet
+  fun iUnify c i1 i2 asstySet = unifyI (getLvidTyfcnMap c) i1 i2 asstySet
 
 end

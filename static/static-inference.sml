@@ -44,12 +44,11 @@ structure StaticInference = struct
 
   fun vrowComp (vrow : CST.vrow) c = patsComp (map #1 vrow) c
   
-
-  val tsUnify = Unify.tsUnify
-  val iUnify = Unify.iUnify
-
   val asstySet = ref (AS.empty : AS.set)
   (* DAG graph *)
+
+  fun tsUnify c ts1 ts2 = (Unify.tsUnify c ts1 ts2 asstySet)
+  fun iUnify c i1 i2 = Unify.iUnify c i1 i2 asstySet
 
   (* create a new assty with optional parent p *)
   fun newAssty p = let
@@ -167,8 +166,10 @@ structure StaticInference = struct
           val iExp' = iUnify c iExp (I.fromListPair [(newAt, TS.wild)]) in
           (tsExp', iExp') end
       | tsExp => let
-          val tsExp' = TS.getFunTysch tsAtexp TS.wild in
-          (tsExp', iExp) end
+          val newAt = newAssty NONE
+          val tsExp' = TS.getFunTysch tsAtexp (VS.empty, TY.ASSTY newAt)
+          val iExp' = iUnify c iExp (I.fromListPair [(newAt, TS.wild)]) in
+          (tsExp', iExp') end
 
     val (tsUni, iUni) = tsUnify c tsExp tsExp'
     (*TODO: no longer necessary*)
@@ -201,9 +202,12 @@ structure StaticInference = struct
     | (FN_EXP match) => let 
       val (tsMatch, iMatch, sMatch) = infMatch c match in
       (tsMatch, iMatch, IST.FN_EXP sMatch) end in
+    TIO.println (CST.expToString exp);
+    TIO.println (TS.toString ts);
+    TIO.println (I.toString i);
     (ts, i, (syn, C.groundTysch c ts)) end
 
-  and infMatch   c (match) =  let 
+  and infMatch   c match =  let 
     val (ts, i ,revsyn) = 
     List.foldl (fn (mrule, (ts, i, syn)) => let
       val (tsMrule, iMrule, sMrule) = infMrule c mrule

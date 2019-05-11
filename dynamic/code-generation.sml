@@ -24,7 +24,7 @@ structure NewCodeGeneration = struct
   datatype clos = datatype InterClosure.closure
   datatype attributei = datatype JA.attributei
 
-  val intListSort = ListMergeSort.sort (op >)
+  val intListSort = ListMergeSort.sort (fn ((f1, _ : (string option)), (f2, _)) => f1 > f2)
 
   fun id2cname i = ["C" ^ (Int.toString i)]
   fun id2fname i = "f" ^ (Int.toString i)
@@ -56,15 +56,15 @@ structure NewCodeGeneration = struct
   val intValDesc   = M_DESC ([], I)
   val prevDesc = JD.classDesc o id2cname
 
-  fun genProg prog = let
+  fun genProg prog spa = let
 
-  val glocmap = NewAllocation.genProg prog
+  val glocmap = NewAllocation.genProg prog spa
   val gfldmap = IMAP.map (fn lmap =>
     intListSort (LMAP.foldl (fn (FLD f, fs) => f :: fs
                               | (_, fs) => fs) [] lmap)) glocmap
 
   val gfrevmap = IMAP.map (fn lmap =>
-    (LMAP.foldli (fn (loc, FLD f, fm) => IMAP.insert (fm, f, loc)
+    (LMAP.foldli (fn (loc, FLD f, fm) => IMAP.insert (fm, #1 f, loc)
                    | (loc, _,     fm) => fm) IMAP.empty lmap)) glocmap
 
   fun funInitDesc id = let val narg = (length o valOf) (IMAP.find (gfldmap, id)) in
@@ -72,7 +72,10 @@ structure NewCodeGeneration = struct
     handle Option => (print "funInitDesc"; raise Option)
 
   (* construct a closure t from closure s *)
-  fun getFlds c = valOf (IMAP.find (gfldmap, c)) 
+  fun getFlds c = #1 (ListPair.unzip (valOf (IMAP.find (gfldmap, c)))) 
+    handle Option => (print "GETFLD"; raise Option)
+
+  fun getFldsWithIdop c = valOf (IMAP.find (gfldmap, c)) 
     handle Option => (print "GETFLD"; raise Option)
 
   (*val locmap = Allocation.genProg prog*)
@@ -143,29 +146,29 @@ structure NewCodeGeneration = struct
 
   fun getLoc l = Option.valOf (LMAP.find (locmap, l)) handle Option => (print
     "3"; NUL)
-  fun fld2fref l = C_FREF (id2cname closid, id2fname l, objectDesc)
+  fun fld2fref fldname = C_FREF (id2cname closid, fldname, objectDesc)
 
   (* add field to the class and give the map *)
-  val fld2cidmap = List.foldl (fn (f, fcmap) => let
-    val cid = addConst (fld2fref f) in
-    addField ([JF.ACC_PUBLIC], id2fname f, objectDesc);
-    IMAP.insert (fcmap, f, cid) end) (IMAP.empty) (getFlds closid)
+  val fld2cidmap = List.foldl (fn ((f, idop), fcmap) => let
+    val fldname = if isSome idop then valOf idop else id2fname f
+    val cid = addConst (fld2fref fldname) in
+    addField ([JF.ACC_PUBLIC], fldname, objectDesc);
+    IMAP.insert (fcmap, f, cid) end) (IMAP.empty) (getFldsWithIdop closid)
 
   fun getFldCid f = valOf (IMAP.find (fld2cidmap, f)) 
     handle Option => (print (Int.toString f) ; 
-    print ("--" ^ (Int.toString closid)); print "\n"; 0)
-
+    print ("--" ^ (Int.toString closid)); print "\n"; raise Option)
 
   (* move local variable or field to/from stack top *)
   fun l2s (LOC l)      = [ALOAD l]
-    | l2s (FLD l) = [ALOAD_0, GETFIELD (getFldCid l)]
+    | l2s (FLD (l, _)) = [ALOAD_0, GETFIELD (getFldCid l)]
 
     | l2s NUL = [ACONST_N]
     | l2s (BAS i) = [GETSTATIC (addConst
         (C_FREF (basCname, id2fname i, objectDesc)))]
 
   fun s2l (LOC l) = ([], [ASTORE l])
-    | s2l (FLD l) = ([ALOAD_0], [PUTFIELD (getFldCid l)])
+    | s2l (FLD (l, _)) = ([ALOAD_0], [PUTFIELD (getFldCid l)])
 
     | s2l NUL = ([],[POP])
     | s2l (BAS _) = raise Size
@@ -190,8 +193,10 @@ structure NewCodeGeneration = struct
     val laboff = ref IMAP.empty
     fun getlo i = IMAP.find (! laboff, i)
     fun addlo i off =
-      if Option.isSome (getlo i) then
-      raise Size else
+      if Option.isSome (getlo i) then(
+      TIO.println "REPEATED LABEL";
+      TIO.println (Int.toString i);
+      raise Size ) else
       laboff := IMAP.insert (! laboff, i, off)
 
     fun gen [] off = []
@@ -214,36 +219,41 @@ structure NewCodeGeneration = struct
 
           | gen (NEWSCN (l, s))         = (case s of
               INT_SCON i => CODE
-                (stk2loc l [BIPUSH i, INVOKESTATIC intValofCid]))
+                (stk2loc l [SIPUSH i, INVOKESTATIC intValofCid])
+            | STR_SCON s => let val sCid = addConst (C_STR s) in
+              TIO.println "STR SCON";
+              TIO.println s;
+              TIO.println (Int.toString sCid);
+              CODE (stk2loc l [LDC_W sCid]) end)
 
           | gen (NEWRCD (l, ls))        = let
           val (rcode, _) = List.foldl (fn (l, (c, i)) => let
             val lload = loc2stk l
             val kCid = addConst (C_INT i)
-            val kload = [LDC kCid] in
+            val kload = [LDC_W kCid] in
             (c @ [DUP] @ kload @ lload @ [AASTORE], i + 1) end)
             ([], 0) ls
           val lenCid = addConst (C_INT (List.length ls))
-          val code = [LDC lenCid, ANEWARRAY objectCid] @ rcode in
+          val code = [LDC_W lenCid, ANEWARRAY objectCid] @ rcode in
           CODE (stk2loc l code) end
 
           | gen (NEWTAG (l1, l2, c))    = let
           val l2load = loc2stk l2
-          val code = [NEW tagClsCid, DUP, BIPUSH c] @
+          val code = [NEW tagClsCid, DUP, SIPUSH c] @
             l2load @ [INVOKESPECIAL tagInitCid] in
           CODE (stk2loc l1 code) end
 
           | gen (MATRCD (l1, l2, i)) = let
           val kCid = addConst (C_INT i)
           val (code0, code3) = (s2l o getLoc) l1
-          val code = code0 @ (loc2stk l2) @ [LDC kCid, AALOAD] @ code3 in
+          val code = code0 @ (loc2stk l2) @ [LDC_W kCid, AALOAD] @ code3 in
             CODE code end
 
           | gen (MATTAG (l1, l2, c, b)) = let
           val loop = getlo b
           val (code0, code3) = (s2l o getLoc) l1
           val code1 = code0 @ (loc2stk l2) @
-            [DUP, GETFIELD tagTagCid, BIPUSH c, 
+            [DUP, GETFIELD tagTagCid, SIPUSH c, 
              IF_ICMPNE 9, GETFIELD tagValCid, GOTO 7, POP]
           val broff = off + (JI.listSize code1)
           val reloff = (Option.valOf loop) - broff
@@ -257,7 +267,7 @@ structure NewCodeGeneration = struct
 
           | gen (MATINT (l, i, b))      = let
           val loop = getlo b
-          val code1 = (loc2stk l) @ [INVOKEVIRTUAL intValCid, BIPUSH i]
+          val code1 = (loc2stk l) @ [INVOKEVIRTUAL intValCid, SIPUSH i]
           val broff = off + (JI.listSize code1)
           val refoff = (Option.valOf loop) - broff
             handle Option => 0
@@ -331,10 +341,10 @@ structure NewCodeGeneration = struct
   in IMAP.foldli (fn (id, c, l) =>
           (id, genClos (id, c)) :: l) [] prog end
 
-  fun writeProg prog dir = let
-    val clses = genProg prog in
-    List.map (fn (id, c) => JC.write c
-        (dir ^ "/" ^ "C" ^ (Int.toString id) ^ ".class")) clses; () end
+  (*fun writeProg prog dir = let*)
+    (*val clses = genProg prog in*)
+    (*List.map (fn (id, c) => JC.write c*)
+        (*(dir ^ "/" ^ "C" ^ (Int.toString id) ^ ".class")) clses; () end*)
 
   fun writeClsList prog dir = (
     List.map (fn (id, c) => JC.write c

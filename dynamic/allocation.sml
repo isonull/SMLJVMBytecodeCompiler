@@ -98,6 +98,7 @@ structure NewAllocation = struct
 
   structure LSET = LocationBinarySet
   structure LMAP = LocationBinaryMap
+  structure SMAP = StringBinaryMap
 
   structure IMAP = IntBinaryMapAux
   structure ISET = IntBinarySetAux
@@ -105,6 +106,7 @@ structure NewAllocation = struct
   structure II = InterInstruction
   structure IM = InterMethod
   structure IP = InterProgram
+  structure S = Space
 
   datatype clos = datatype InterClosure.closure
   datatype instruction = datatype InterInstruction.code
@@ -112,21 +114,21 @@ structure NewAllocation = struct
   datatype location =
     LOC of int |
     (* loc fldid *)
-    FLD of int |
+    FLD of (int * string option) |
     NUL |
     BAS of int
 
   val valOf  = Option.valOf
   val isSome = Option.isSome
 
-  fun genProg prog = let
+  fun genProg prog spa = let
 
     val locmap = ref ((IMAP.map (fn _ => LMAP.empty) prog)
     : (location LMAP.map) IMAP.map)
     val baslm = LMAP.fromListPair ([((~1,~1), NUL)] @
-             (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD f)
-                         | (Value.CON ((~1, f), t)) => ((~1, f), FLD f)
-                         | (Value.EXC ((~1, f), t)) => ((~1, f), FLD f))
+             (List.map (fn (Value.VAL (~1, f)) => ((~1, f), FLD (f, NONE))
+                         | (Value.CON ((~1, f), t)) => ((~1, f), FLD (f, NONE))
+                         | (Value.EXC ((~1, f), t)) => ((~1, f), FLD (f, NONE)))
              (#2 (ListPair.unzip (InitialSpace.basNameValueListPair)))))
     val _ = locmap := IMAP.insert (! locmap, ~1, baslm)
 
@@ -134,10 +136,14 @@ structure NewAllocation = struct
                               | FCN _ => ICT.newi 1) prog
     val fldctmap = IMAP.map (fn _ => ICT.newi ~1) prog
 
+
     fun locnext i = (ICT.next o valOf) (IMAP.find (locctmap, i))
       handle Option => (TIO.println "locnext"; raise Option)
     fun fldnext i = (ICT.next o valOf) (IMAP.find (fldctmap, i))
       handle Option => (TIO.println "fldnext"; raise Option)
+
+    val outmap = SMAP.foldli (fn (id, v, m) => let
+      val loc = Value.toLoc v in LMAP.insert (m, loc, id) end) LMAP.empty (S.getValspa spa)
 
     fun addlm cid (loc as (c, l)) = let
       val lm = ! locmap
@@ -146,13 +152,24 @@ structure NewAllocation = struct
       val psop = LMAP.find (clm, loc) in
       if isSome psop then () else let
         val p =
-        (if c = ~1 then
-          (if l = ~1 then NUL else BAS l) else
-          (if cid = c then
+        if cid = 0 then 
+          if c = ~1 then
+            (if l = ~1 then NUL else BAS l) 
+          else if c = 0 then
+            (if l <= 0 then LOC (~l) 
+             else let
+              val idop = LMAP.find (outmap, loc) in
+              if isSome idop then FLD (fldnext cid, SOME (valOf idop))
+              else LOC (locnext cid) end) 
+          else raise Match
+        else
+          if c = ~1 then
+            (if l = ~1 then NUL else BAS l) 
+          else if cid = c then
             (if l <= 0 then
               LOC (~l) else
-              LOC (locnext cid)) else
-            FLD (fldnext cid)))
+              LOC (locnext cid)) 
+          else FLD (fldnext cid, NONE)
 
         val newclm = LMAP.insert (clm, loc, p)
         val newlm  = IMAP.insert (lm, cid, newclm) in
@@ -184,7 +201,8 @@ structure NewAllocation = struct
   val i2s = Int.toString
   fun l2s (a, b) = "(" ^ (i2s a) ^ "," ^ (i2s b) ^ ")"
   fun lc2s (LOC i) = "LOC " ^ (i2s i)
-    | lc2s (FLD i) = "FLD " ^ (i2s i)
+    | lc2s (FLD (i, SOME s)) = "FLD " ^ (i2s i) ^ s
+    | lc2s (FLD (i, NONE)) = "FLD " ^ (i2s i)
     | lc2s NUL = "NUL"
     | lc2s (BAS l) = "BAS " ^ (i2s l)
 

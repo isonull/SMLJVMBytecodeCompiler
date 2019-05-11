@@ -2,6 +2,7 @@ structure InterInstruction = struct
 
   structure SC = SpecialConstant
   structure LMAP = LocationBinaryMap
+  structure IM = IntBinaryMapAux
 
   type loc = int * int
   type fid = int
@@ -100,6 +101,22 @@ structure InterInstruction = struct
     | (RETURN l)              => (RETURN (maploc l))
     | EXIT                    => EXIT
   end
+
+  fun getLabels i = case i of
+      (MATTAG (l1, l2, c, b)) => [b]
+    | (MATINT (l, i, b))      => [b]
+    | (LABEL  l)              => [l]
+    | (GOTO l)                => [l]
+    | _ => []
+
+  fun replaceLabels map i = let
+    fun newlab l = valOf (IM.find (map, l)) in 
+    case i of
+      (MATTAG (l1, l2, c, b)) => (MATTAG (l1, l2, c, newlab b))
+    | (MATINT (l, i, b))      => (MATINT (l, i, newlab b))     
+    | (LABEL  l)              => (LABEL  (newlab l))             
+    | (GOTO l)                => (GOTO (newlab l))               
+    | _ => i end
 
   fun toString (MOV    (l1, l2)) = "MOV" ^ " " ^ (l2s l1) ^ " " ^ (l2s l2)
     | toString (NEWSCN (l, sc))  = "NEWSCN"  ^ " " ^ (l2s l) ^ " " ^

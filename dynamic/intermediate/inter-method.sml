@@ -4,6 +4,7 @@ structure InterMethod = struct
   structure ISET = IntBinarySetAux
   structure IM = IntBinaryMapAux
   structure IS = IntBinarySetAux
+  structure LS = LabBinarySet
 
   datatype code = datatype II.code
 
@@ -20,6 +21,19 @@ structure InterMethod = struct
   fun replaceLocs map method = List.map (II.replaceLocs map) method
 
   fun getLabelIndex m l = ListAux.findIndex m (LABEL l)
+
+  fun getLabelset m = List.foldl (fn (inst, s) => let
+    val is = IS.fromList (II.getLabels inst) in
+    IS.union (s, is) end) (IS.empty) m
+
+  fun newLabel m lab = let
+    val labset = getLabelset m
+    val (labmap, labmax) = IS.foldl (fn (l, (map, labmax)) => 
+      (IM.insert (map, l, labmax + 1), labmax + 1) 
+      ) (IM.empty, lab) labset
+    val meth  = List.map (fn i => II.replaceLabels labmap i) m in 
+    (meth, labmax) end
+
 
   fun getBlockMap  meth = let
 

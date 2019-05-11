@@ -1,6 +1,7 @@
 Group is
 
 ../../utils/utils.cm
+./location.sml
 ./value.sml
 ./memory.sml
 ./pack.sml

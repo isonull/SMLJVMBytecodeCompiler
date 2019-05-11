@@ -7,7 +7,7 @@ functor OrdSetAuxFn (Set : ORD_SET) = struct
   fun deleteList (set, ls) = Set.difference (set, fromList ls)
 
   fun toString set tostr splitStr =
-    Set.foldr (fn (e, str) => (tostr e) ^ splitStr ^ str ) "" set
+    ListAux.toString (listItems set) tostr splitStr
 
   fun unions sets =
     List.foldl (fn (s, us) => Set.union (s, us)) Set.empty sets

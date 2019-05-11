@@ -4,7 +4,7 @@ structure Test = struct
 
   exception InputError
 
-  fun echo s = system ("echo \"" ^ s ^ "\"")  
+  fun echo s = system ("echo \"" ^ s ^ "\"")
   fun readFile f = Frontend.readFile f
   fun cp f1 f2 = system ("yes | cp -rf " ^ f1 ^ " " ^ f2)
   fun mkdir f = system ("mkdir " ^ f)
@@ -22,8 +22,9 @@ structure Test = struct
     val fst = Frontend.parse infile
     val cst = CoreSyntaxTree.fromProg fst
     val (env, ist) = StaticInference.inference cst 
-    val (spa, imr, _) = InterInference.inference ist
-    val cfs = NewCodeGeneration.genProg imr 
+    val (spa, imr, lab) = InterInference.inference ist
+    val imropt = InterOptimise.opt imr lab
+    val cfs = NewCodeGeneration.genProg imropt spa 
     val rep = CoreSyntaxTree.toString cst in
     TIO.println ("Program name: " ^ progname);
     TIO.println ("Input file: " ^ infile);
@@ -34,9 +35,13 @@ structure Test = struct
     repout (CoreSyntaxTree.toString cst);
     repout (IntermediateSyntaxTree.toString ist);
     repout (InterProgram.toString imr);
+    repout "----- INTERMEDIATE REPRESENTATION OPTIMISED -----";
+    repout (InterProgram.toString imropt);
     repout (Environment.toString env);
+    repout (Space.toString spa);
     TextIO.flushOut repstm;
+    TIO.println "FINISH";
     1
-  end
+  end handle _ => (TIO.println "ERROR"; 0)
 
 end

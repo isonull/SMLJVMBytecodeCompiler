@@ -128,14 +128,6 @@ structure InterInference = struct
     val (expCode, locCode) = infExp modspa exp
     val code = decCode @ expCode in (code, locCode) end
 
-  and infConAppExp spa (APP_EXP ((AT_EXP (LVID_ATEXP lvid, _), ts), 
-                                 (atexp, ts'))) = let
-      val (codeAtexp, locAtexp) = infAtexp spa atexp
-      val loc = newloc ()
-      val Value.CON (_, tag)= valOf (S.getValstr spa lvid)
-        handle Option => (TIO.println "LVID not found"; raise Option) in 
-      (codeAtexp @ [NEWTAG (loc,locAtexp,tag)], loc) end
-
   and infExp spa (AT_EXP (atexp, ts)) = infAtexp spa atexp
 
     | infExp spa (APP_EXP ((FN_EXP match, ts), (atexp, ts'))) = let
@@ -144,14 +136,21 @@ structure InterInference = struct
     val code = codeAtexp @ codeApp in
     (code, locApp) end
 
-    | infExp spa (APP_EXP ((exp, ts), (atexp, ts'))) = (
-    infConAppExp spa (APP_EXP ((exp, ts), (atexp, ts')))
-    handle _ => let
+    | infExp spa (APP_EXP ((exp, ts), (atexp, ts'))) = let
     val (codeAtexp, locAtexp) = infAtexp spa atexp
-    val (codeExp, locExp) = infExp spa exp
     val loc = newloc ()
-    val code = codeAtexp @ codeExp @ [CALL (loc, locExp, locAtexp)] in
-    (code, loc) end)
+    val code = case exp of 
+        AT_EXP (LVID_ATEXP lvid, _) => let
+          val tagop = Value.getTag (valOf (S.getValstr spa lvid)) in
+          if isSome tagop then
+            codeAtexp @ [NEWTAG (loc,locAtexp,valOf tagop)]
+          else let
+            val (codeExp, locExp) = infExp spa exp in
+            codeAtexp @ codeExp @ [CALL (loc, locExp, locAtexp)] end end
+      | _ => let
+        val (codeExp, locExp) = infExp spa exp in
+        codeAtexp @ codeExp @ [CALL (loc, locExp, locAtexp)] end in
+    (code, loc) end
 
     | infExp spa (FN_EXP match) = let
       val fid = newclos F
@@ -212,7 +211,8 @@ structure InterInference = struct
     val (code, vs, comp) = infValbind spa lab valbd
     val code = code @ (if comp then [] else 
       [GOTO lab2, LABEL lab, RAISE IS.bindLoc, LABEL lab2])
-    val s = S.fromValspa vs in (code, s) end
+    val s = S.fromValspa vs in 
+    (code, s) end
 
     (*| infDec spa (SEQ_DEC (dec1, dec2)) = let*)
     (*val (code1, spa1) = infDec spa dec1*)
@@ -222,11 +222,12 @@ structure InterInference = struct
     (*(code1 @ code2, s) end*)
 
     | infDec spa (SEQ_DEC decs) = let
-    val (code, spa) = List.foldl (fn (dec, (code, spa)) => let
+    val (code, spa, rspa) = List.foldl (fn (dec, (code, spa, rspa)) => let
       val (cDec, sDec) = infDec spa dec
       val spa' = S.modify spa sDec
-      val code' = code @ cDec in (code', spa') end) ([], spa) decs in
-    (code, spa) end
+      val rspa' = S.modify rspa sDec
+      val code' = code @ cDec in (code', spa', rspa') end) ([], spa, S.empty) decs in
+    (code, rspa) end
 
     | infDec spa (DAT_DEC datbd) = let
     val (code, vs, ts) = infDatbind datbd
@@ -234,7 +235,7 @@ structure InterInference = struct
     (code, s) end
 
     | infDec spa (EXC_DEC exbd) = let
-      val (ebCode, ebVs, nexttag) = infConbind exbd false (! excref) in
+    val (ebCode, ebVs, nexttag) = infConbind exbd false (! excref) in
     excref := nexttag;
     (ebCode, Value.SPA (SS.empty, TS.empty, ebVs)) end
 

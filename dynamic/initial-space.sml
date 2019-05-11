@@ -19,7 +19,7 @@ structure InitialSpace = struct
     ("ilt"    , VAL (~1,161)),
     ("ige"    , VAL (~1,162)),
     ("igt"    , VAL (~1,163)),
-    ("ile"    , VAL (~1,165)),
+    ("ile"    , VAL (~1,164)),
     ("false"  , CON ((~1,0),0)),
     ("true"   , CON ((~1,1),1)),
     ("CON"    , CON ((~1,2),0)),

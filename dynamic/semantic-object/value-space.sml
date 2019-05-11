@@ -23,4 +23,6 @@ structure ValueSpace = struct
       (*else (Option.valOf sub, s) end) vs2 in*)
     (*vs2' end*)
 
+  fun toString valspa = SM.toString valspa (fn x => x) Value.toString "-" "\n"
+
 end
